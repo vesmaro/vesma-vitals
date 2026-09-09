@@ -16,7 +16,7 @@ import re
 
 import pytest
 
-from mnemos_vitals.schema import TABLE_SCHEMAS, TABLE_NAMES
+from mnemos_vitals.schema import TABLE_NAMES, TABLE_SCHEMAS
 
 # Columns that may never exist in any sidecar table (privacy by structure,
 # not by filter). "query" is never persisted; "content"/"text" columns would

@@ -1,9 +1,9 @@
 """Born-final sidecar schema — the allowlist is the whole contract.
 
-Phase A/A2 (docs/architecture.md §2; ADR-0026 mnemos C1–C5). The metrics
+Phase A/A2 (docs/architecture.md §2; ADR-0026 mnemos C1-C5). The metrics
 sqlite sidecar is created with this FINAL schema on first open — no
 migrations exist, by decision D-0002 (a sidecar with migrations would
-re-create the very operational risk — migration-поездов — that the
+re-create the very operational risk (migration trains) that the
 sidecar exists to avoid).
 
 Privacy is by structure, not by filter (ADR-0026):
@@ -56,7 +56,7 @@ class TableSchema:
 
     @property
     def create_sql(self) -> str:
-        body = ",\n    ".join(c.decl for c in self.columns)
+        body = ",\n    ".join(f"{c.name} {c.decl}" for c in self.columns)
         return f"CREATE TABLE IF NOT EXISTS {self.name} (\n    {body}\n)"
 
 
@@ -152,14 +152,16 @@ USAGE_REPORTS = _table(
 )
 
 TABLE_SCHEMAS: dict[str, TableSchema] = {
-    t.name: t for t in (VERB_METRICS, VERB_HOURLY, ASSEMBLE_METRICS, INJECTION_BLOCKS, USAGE_REPORTS)
+    t.name: t
+    for t in (VERB_METRICS, VERB_HOURLY, ASSEMBLE_METRICS, INJECTION_BLOCKS, USAGE_REPORTS)
 }
 TABLE_NAMES: tuple[str, ...] = tuple(TABLE_SCHEMAS)
 
 INDEXES_SQL: tuple[str, ...] = (
     "CREATE INDEX IF NOT EXISTS idx_verb_ts ON verb_metrics(ts)",
     "CREATE INDEX IF NOT EXISTS idx_verb_surface_verb_ts ON verb_metrics(surface, verb, ts)",
-    "CREATE INDEX IF NOT EXISTS idx_hourly_key ON verb_metrics_hourly(hour, surface, verb, status, project)",
+    "CREATE INDEX IF NOT EXISTS idx_hourly_key"
+    " ON verb_metrics_hourly(hour, surface, verb, status, project)",
     "CREATE INDEX IF NOT EXISTS idx_assemble_session_ts ON assemble_metrics(session, ts)",
     "CREATE INDEX IF NOT EXISTS idx_assemble_project_ts ON assemble_metrics(project, ts)",
     "CREATE INDEX IF NOT EXISTS idx_injection_metrics ON injection_blocks(metrics_id)",
@@ -191,10 +193,10 @@ SCHEMA_SQL: tuple[str, ...] = tuple(
 #: Security invariant inputs — the exposer computes these from gates and
 #: canaries, never from non-fatal telemetry (RL-S4).
 __all__ = [
-    "SIDECAR_FILENAME",
-    "RETENTION_DAYS",
-    "TABLE_SCHEMAS",
-    "TABLE_NAMES",
     "META_ALLOWLIST",
+    "RETENTION_DAYS",
     "SCHEMA_SQL",
+    "SIDECAR_FILENAME",
+    "TABLE_NAMES",
+    "TABLE_SCHEMAS",
 ]
