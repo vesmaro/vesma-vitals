@@ -1,5 +1,20 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Phase A library core (branch `feat/phase-a-sink`): born-final sidecar schema
+  (`schema.py` — five tables, allowlist meta_json, retention constants) and
+  `MetricsStore` (`sink.py`) — the passive-collection write path with non-fatal
+  degradation, 250 ms busy_timeout, keyed-HMAC fingerprints (key outside the
+  sidecar, no rotation), allowlisted stage-stats projection and fail-loud
+  nightly retention.
+- C1 isolation canary — FIRST implementation commit, before any runtime
+  metric exists (ADR-0026 mnemos).
+- Claims-ledger seeded (`docs/claims.md`) per methodology §6.
+- Test suite: 22 tests (9 canary + 13 sink contract); ruff clean.
+
 ## 0.0.1 — 2026-09-09
 
 - Project founded: methodology, architecture and instrumentation track split
