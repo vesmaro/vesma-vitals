@@ -27,6 +27,6 @@ FAMILY_REGISTRY = {
 #: Status taxonomy — the honesty core.
 STATUS_TAXONOMY = {
     "invariant": "mechanical fact (= 1.000 / = 0); always blocks merges",
-    "corridor": "regression vs own baseline − max(0.02; CI95); blocks",
+    "corridor": "regression vs own baseline - max(0.02; CI95); blocks",
     "verdict": "value threshold; NEVER blocks; PASS / FAIL / NO-DATA",
 }
