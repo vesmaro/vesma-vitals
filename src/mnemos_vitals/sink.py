@@ -53,47 +53,103 @@ _SHINGLE_RE = re.compile(r"\w+", re.UNICODE)
 _SHINGLE_SIZE = 5
 
 #: Stage stats that survive into ``stage_stats_json`` (allowlist, C5
-#: applied to the stats dict — it is NOT persisted verbatim). Recall
-#: counts and budget/refusal facts; ``recall.query`` (raw text) never.
-_STAGE_STATS_ALLOWLIST = {
-    "stages",
-    "recall.candidates",
-    "recall.content_type_filtered",
-    "recall.applyto_pinned",
-    "recall.query_source",
-    "ccr.expanded",
-    "ccr.refused",
-    "filter.filtered",
-    "scan.blocks_refused",
-    "align.removed",
-    "budget.blocks_included",
-    "budget.blocks_skipped",
-}
+#: applied to the stats dict — it is NOT persisted verbatim). Key set
+#: mirrors src/vesmaro/assemble.py stage builders as of main `3c8f270`
+#: (2026-09-20); the projection is drift-tolerant: any key not listed
+#: here — including raw ``recall.query`` and future keys — is dropped.
+_STAGE_STATS_ALLOWLIST = frozenset(
+    {
+        "stages",  # list of stage names (order contract), capped
+        # recall (query itself is raw text — never listed)
+        "recall.query_source",
+        "recall.candidates",
+        "recall.admissible",
+        "recall.content_type_filtered",
+        "recall.content_type_fallbacks",
+        "recall.applyto_pinned",
+        # ccr stage
+        "ccr.enabled",
+        "ccr.markers_found",
+        "ccr.expanded",
+        "ccr.skipped_missing",
+        "ccr.skipped_budget",
+        "ccr.skipped_refused",
+        # filter stage (profile names are enums, capped list)
+        "filter.profiles",
+        # scan / align / budget stages
+        "scan.blocks_scanned",
+        "scan.blocks_refused",
+        "align.blocks_aligned",
+        "align.moved_chars",
+        "budget.blocks_included",
+        "budget.blocks_skipped",
+        # ADR-0025/0027 optional telemetry — present only when flags on
+        "recall.lanes.rules",
+        "recall.lanes.decisions",
+        "recall.lanes.knowledge",
+        "recall.lanes.governance_excluded_from_knowledge",
+        "recall.lanes.task_filtered",
+        "recall.type_boost.boosted",
+        "recall.lens.name",
+        "recall.lens.active",
+        "task_scoped",
+    }
+)
+
+#: String values allowed through the projection: short enums only.
+_STR_VALUE_LIMIT = 32
+_LIST_VALUE_LIMIT = 16
+_ENUM_STR_PATHS = frozenset({"recall.query_source", "recall.lens.name"})
 
 
 def _project_stage_stats(stats: dict) -> dict:
-    """Allowlisted projection of the assemble stats dict (never verbatim)."""
-    recall = stats.get("recall") or {}
-    ccr = stats.get("ccr") or {}
-    filt = stats.get("filter") or {}
-    scan = stats.get("scan") or {}
-    align = stats.get("align") or {}
-    budget = stats.get("budget") or {}
-    flat = {
-        "stages": stats.get("stages"),
-        "recall.candidates": recall.get("candidates"),
-        "recall.content_type_filtered": recall.get("content_type_filtered"),
-        "recall.applyto_pinned": recall.get("applyto_pinned"),
-        "recall.query_source": recall.get("query_source"),
-        "ccr.expanded": ccr.get("expanded"),
-        "ccr.refused": ccr.get("refused"),
-        "filter.filtered": filt.get("filtered"),
-        "scan.blocks_refused": scan.get("blocks_refused"),
-        "align.removed": align.get("removed"),
-        "budget.blocks_included": budget.get("blocks_included"),
-        "budget.blocks_skipped": budget.get("blocks_skipped"),
-    }
-    return {k: v for k, v in flat.items() if k in _STAGE_STATS_ALLOWLIST and v is not None}
+    """Allowlisted flattening of the assemble stats dict (never verbatim).
+
+    Walks ``stats`` two levels deep into dotted ``stage.key`` paths and
+    keeps only allowlisted paths with scalar values (numbers/bools), a
+    capped list of profile names, or capped enum strings. Raw text —
+    ``recall.query`` above all — is structurally absent from the
+    allowlist, so no code path can leak it.
+    """
+    if not isinstance(stats, dict):
+        return {}
+    out: dict = {}
+    for stage, payload in stats.items():
+        if stage == "stages":
+            if isinstance(payload, list) and len(payload) <= _LIST_VALUE_LIMIT:
+                out["stages"] = [str(s)[:_STR_VALUE_LIMIT] for s in payload]
+            continue
+        if stage in _STAGE_STATS_ALLOWLIST and (
+            payload is None or isinstance(payload, (int, float, bool))
+        ):
+            out[stage] = payload  # bare top-level scalars (task_scoped)
+            continue
+        if not isinstance(payload, dict):
+            continue
+        for key, value in payload.items():
+            path = f"{stage}.{key}"
+            self_ok = path in _STAGE_STATS_ALLOWLIST
+            if self_ok and (value is None or isinstance(value, (int, float, bool))):
+                out[path] = value
+                continue
+            if self_ok and path == "filter.profiles" and isinstance(value, list):
+                out[path] = [str(p)[:_STR_VALUE_LIMIT] for p in value[:_LIST_VALUE_LIMIT]]
+                continue
+            if self_ok and path in _ENUM_STR_PATHS and isinstance(value, str):
+                out[path] = value[:_STR_VALUE_LIMIT]
+                continue
+            if isinstance(value, dict):
+                # sub-dicts (recall.lanes.*, recall.lens.*) — one more level
+                for sub, sub_value in value.items():
+                    sub_path = f"{path}.{sub}"
+                    if sub_path not in _STAGE_STATS_ALLOWLIST:
+                        continue  # drift-tolerant: unknown keys dropped
+                    if sub_value is None or isinstance(sub_value, (int, float, bool)):
+                        out[sub_path] = sub_value
+                    elif sub_path in _ENUM_STR_PATHS and isinstance(sub_value, str):
+                        out[sub_path] = sub_value[:_STR_VALUE_LIMIT]
+            # anything else (raw text, deeper nesting) never leaves
+    return out
 
 
 class MetricsStore:

@@ -52,14 +52,28 @@ def make_result(
                 "query": query,  # raw text — MUST NOT survive
                 "query_source": "explicit",
                 "candidates": 12,
+                "admissible": 12,
                 "content_type_filtered": 0,
+                "content_type_fallbacks": 0,
                 "applyto_pinned": 2,
             },
-            "ccr": {"expanded": 1, "refused": 0},
-            "filter": {"filtered": 0},
-            "scan": {"blocks_refused": 3},
-            "align": {"removed": 0},
-            "budget": {"blocks_included": 2, "blocks_skipped": 1},
+            "ccr": {
+                "enabled": True,
+                "markers_found": 2,
+                "expanded": 1,
+                "skipped_missing": 0,
+                "skipped_budget": 0,
+                "skipped_refused": 0,
+            },
+            "filter": {"profiles": ["log"]},
+            "scan": {"blocks_scanned": 5, "blocks_refused": 3},
+            "align": {"blocks_aligned": 2, "moved_chars": 140},
+            "budget": {
+                "budget": 2000,
+                "estimated_tokens": 120,
+                "blocks_included": 2,
+                "blocks_skipped": 1,
+            },
         },
     }
 
