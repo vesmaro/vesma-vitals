@@ -11,7 +11,7 @@
 | Методология (канон) | 100% | Завершено — `docs/methodology.md` |
 | Архитектура (спецификация) | 100% | Завершено — `docs/architecture.md` |
 | Фундамент репозитория | 100% | Завершено — README, decisions, статус, каркас |
-| Фаза A (sink + пассивный сбор) | 70% | Библиотечное ядро на `feat/phase-a-sink` (`31d5258`/`b8113d8`/`81c95b1`/`9a8bc78`/`a59edee`, 34 теста, ruff 0). Осталось: интеграционный PR в vesmaro (hook/MCP-граница) + решение о default-on |
+| Фаза A (sink + пассивный сбор) | 70% | Библиотечное ядро на `feat/phase-a-sink` (`31d5258`…`0e4e61f`, 33 теста, ruff 0). Осталось: интеграционный PR в vesmaro (hook/MCP-граница) + решение о default-on |
 | Фаза A2 (verb-леджер, весь функционал) | 0% | **Разблокирована**: #249 закрыт (2026-09-14, фикс #304). Первый шаг A2 — verb-леджер + экспозер (подтверждение аддендума у владельца) |
 | Фаза B (динамичность + S5 v1 + F8) | 0% | Не начато — преперегистрация до прогона |
 | Фазы C–E, F9-волны, doctor-P3 | 0% | Не начато |
@@ -75,8 +75,8 @@
   в `metrics.sqlite.hkey` вне sidecar, 0600, без ротации), allowlist-проекция
   stage_stats (query — никогда, file — stem), retention fail-loud с
   child-table каскадом, chmod 0600;
-- `tests/` — 10 канареек C1 (born-final pin колонок + C3-ассерт) + 20
-  контракт-тестов sink/meta/retention + 4 drift-guard; ruff 0 (line-length 100
+- `tests/` — 7 канареек C1 (born-final pin колонок + C3-ассерт) + 22
+  контракт-теста sink/meta/retention + 4 drift-guard; ruff 0 (line-length 100
   по канону mnemos);
 - `docs/claims.md` — claims-ledger засеян (методология §6).
 

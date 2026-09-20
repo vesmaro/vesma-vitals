@@ -242,8 +242,9 @@ class MetricsStore:
                 if len(key) == 32:
                     return key
                 logger.warning(
-                    "vitals: hmac key file corrupt (len=%d) — regenerating;"
-                    " fingerprint continuity across this event is broken",
+                    "vitals: hmac key file corrupt (len=%d) — fingerprints"
+                    " disabled until the corrupt file is removed manually"
+                    " (no silent rotation: forensics first)",
                     len(key),
                 )
             try:

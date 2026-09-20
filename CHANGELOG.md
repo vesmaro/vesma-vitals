@@ -23,7 +23,7 @@
   born-final column pin + explicit C3 session ban in the canary;
   validate_meta() lands the C5 gate ahead of phase A2; retention
   constants pinned, child cascade asserted.
-- Test suite: 34 tests (10 canary + 20 sink/meta/retention + 4
+- Test suite: 33 tests (7 canary + 22 sink/meta/retention + 4
   drift-guard); ruff clean.
 
 ## 0.0.1 — 2026-09-09

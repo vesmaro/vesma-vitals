@@ -185,6 +185,17 @@ class TestFingerprint:
         assert fp_a == fp_b  # no rotation: longitudinal uniqueness holds
         s2.close()
 
+    def test_corrupt_key_file_disables_without_rotation(self, tmp_path: Path):
+        """N3: a corrupt key file is preserved (forensics) and fingerprints
+        degrade to None — no silent regeneration, no accidental rotation."""
+        db = tmp_path / "metrics.sqlite"
+        key_path = tmp_path / "metrics.sqlite.hkey"
+        key_path.write_bytes(b"short")  # corrupt: not 32 bytes
+        s = MetricsStore(db)
+        assert s.fingerprint("anything") is None  # degraded, not rekeyed
+        assert key_path.read_bytes() == b"short"  # corrupt file untouched
+        s.close()
+
 
 class TestNonFatalDegradation:
     def test_record_swallows_sqlite_error(self, tmp_path: Path):
@@ -222,8 +233,11 @@ class TestNonFatalDegradation:
         bad["blocks"] = [{"memory_id": "m", "score": "NOT-A-FLOAT"}]  # float() raises
         assert store.record_assemble(bad) is None  # swallowed
 
+        # the SINK's own connection must not hold the write transaction
+        # (a fresh connection is never in a transaction — that proves nothing)
+        assert not store._local.conn.in_transaction, "failed write left the tx open"
+
         conn = sqlite3.connect(store.db_path)
-        assert not conn.in_transaction, "failed write left the transaction open"
         n_assemble = conn.execute("SELECT COUNT(*) FROM assemble_metrics").fetchone()[0]
         n_blocks = conn.execute("SELECT COUNT(*) FROM injection_blocks").fetchone()[0]
         conn.close()
