@@ -13,7 +13,18 @@
 - C1 isolation canary — FIRST implementation commit, before any runtime
   metric exists (ADR-0026 mnemos).
 - Claims-ledger seeded (`docs/claims.md`) per methodology §6.
-- Test suite: 22 tests (9 canary + 13 sink contract); ruff clean.
+- Stage-stats allowlist synced to the live vesmaro assemble shape
+  (drift found by code inspection: 6 counters were silently lost);
+  drift-guard test pins the live result shape incl. ADR-0025/0027
+  telemetry and synthetic future keys.
+- Review hardening (REQUEST-CHANGES slice fully addressed): OSError
+  can no longer reach the host; failed writes roll back (no phantom
+  rows / open transactions); -wal/-shm pinned 0600 (C2, three files);
+  born-final column pin + explicit C3 session ban in the canary;
+  validate_meta() lands the C5 gate ahead of phase A2; retention
+  constants pinned, child cascade asserted.
+- Test suite: 34 tests (10 canary + 20 sink/meta/retention + 4
+  drift-guard); ruff clean.
 
 ## 0.0.1 — 2026-09-09
 

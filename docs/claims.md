@@ -20,7 +20,7 @@
 | «Нужная инструкция/память подставляется по запросу» | F8 | explicit_hint_share + touched_rate (после калибровки каппой ≥ 0.6) | `UNMEASURED` — touched_rate ждёт фазу C |
 | «Каждая подсистема работает» | F9 | суб-светофоры: федерация, workflow, heal/reclaim, DLQ, ingest_url, auth, транспорт, scanner, watchers, doctor, CCR | `UNMEASURED` — verb-леджер в фазе A2, гейты с первой волны |
 | «Refine повышает качество записей» | F2 | refine-McNemar + refine-retention-gain ≥ 0 | `UNMEASURED` — волна 3 F9, ждёт корпус 192 |
-| Инвариант: инжекция трассируема до строки леджера | F8 | injection-traceability = 1.000 | `measured-health` — механический тест в CI канарейки C1/тестов sink |
+| Инвариант: инжекция трассируема до строки леджера | F8 | injection-traceability = 1.000 | `measured-health` — механический тест (локально; CI в репо не настроен) |
 
 ## Правила
 

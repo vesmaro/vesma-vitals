@@ -39,6 +39,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from mnemos_vitals.schema import (
+    META_ALLOWLIST,
     RETENTION_DAYS,
     SCHEMA_SQL,
     TABLE_NAMES,
@@ -116,8 +117,12 @@ def _project_stage_stats(stats: dict) -> dict:
     out: dict = {}
     for stage, payload in stats.items():
         if stage == "stages":
-            if isinstance(payload, list) and len(payload) <= _LIST_VALUE_LIMIT:
-                out["stages"] = [str(s)[:_STR_VALUE_LIMIT] for s in payload]
+            if isinstance(payload, list):
+                # stage names are enums: drop anything else / over-length —
+                # truncating drifted free text would leak a raw prefix
+                names = [s for s in payload if isinstance(s, str) and len(s) <= _STR_VALUE_LIMIT]
+                if names:
+                    out["stages"] = names[:_LIST_VALUE_LIMIT]
             continue
         if stage in _STAGE_STATS_ALLOWLIST and (
             payload is None or isinstance(payload, (int, float, bool))
@@ -133,7 +138,10 @@ def _project_stage_stats(stats: dict) -> dict:
                 out[path] = value
                 continue
             if self_ok and path == "filter.profiles" and isinstance(value, list):
-                out[path] = [str(p)[:_STR_VALUE_LIMIT] for p in value[:_LIST_VALUE_LIMIT]]
+                # profile names are enums — drop strays, never truncate
+                out[path] = [
+                    p for p in value if isinstance(p, str) and len(p) <= _STR_VALUE_LIMIT
+                ][:_LIST_VALUE_LIMIT]
                 continue
             if self_ok and path in _ENUM_STR_PATHS and isinstance(value, str):
                 out[path] = value[:_STR_VALUE_LIMIT]
@@ -150,6 +158,51 @@ def _project_stage_stats(stats: dict) -> dict:
                         out[sub_path] = sub_value[:_STR_VALUE_LIMIT]
             # anything else (raw text, deeper nesting) never leaves
     return out
+
+
+#: ``error_type`` must look like an exception CLASS name — exception text
+#: never enters the sidecar (C5).
+_ERROR_TYPE_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_.]{0,63}$")
+
+_META_STR_LIMIT = 64
+
+
+def validate_meta(meta: dict | None) -> dict | None:
+    """C5 gate for verb ``meta_json`` — fail-closed, enforced (m3).
+
+    Returns the sanitised dict, or ``None`` when the meta must be
+    REFUSED: unknown key (not in ``META_ALLOWLIST``), non-scalar value,
+    over-long string, or ``error_type`` that is not a class name. The
+    caller logs the refusal — refusal is loud, never a silent drop, and
+    never fatal to the host. Phase A2's ``record_verb`` must route every
+    meta through this function; landing it in phase A means a silent or
+    verbatim implementation cannot pass the suite.
+    """
+    if meta is None:
+        return {}
+    if not isinstance(meta, dict):
+        return None
+    clean: dict = {}
+    for key, value in meta.items():
+        if key not in META_ALLOWLIST:
+            return None
+        if value is None or isinstance(value, (int, float, bool)):
+            clean[key] = value
+        elif key == "counters":
+            # small-int tallies only (e.g. ccr cleanup counters)
+            if not isinstance(value, dict) or not all(
+                isinstance(v, int) and not isinstance(v, bool) and abs(v) <= 10**12
+                for v in value.values()
+            ):
+                return None
+            clean[key] = dict(value)
+        elif isinstance(value, str) and len(value) <= _META_STR_LIMIT:
+            if key == "error_type" and not _ERROR_TYPE_RE.match(value):
+                return None
+            clean[key] = value
+        else:
+            return None
+    return clean
 
 
 class MetricsStore:
@@ -181,18 +234,36 @@ class MetricsStore:
         chmod 0600 (C2 parity with the main store).
         """
         key_path = self.db_path.parent / (self.db_path.name + ".hkey")
+        created = False
         try:
+            self.db_path.parent.mkdir(parents=True, exist_ok=True)
             if key_path.exists():
                 key = key_path.read_bytes()
                 if len(key) == 32:
                     return key
-            self.db_path.parent.mkdir(parents=True, exist_ok=True)
-            key = secrets.token_bytes(32)
-            key_path.write_bytes(key)
-            os.chmod(key_path, 0o600)
-            return key
+                logger.warning(
+                    "vitals: hmac key file corrupt (len=%d) — regenerating;"
+                    " fingerprint continuity across this event is broken",
+                    len(key),
+                )
+            try:
+                fd = os.open(key_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            except FileExistsError:
+                # concurrent bootstrap — adopt the winning writer's key
+                key = key_path.read_bytes()
+                return key if len(key) == 32 else b""
+            created = True  # we own the file: on failure below, remove residue
+            with os.fdopen(fd, "wb") as f:
+                f.write(secrets.token_bytes(32))
+            os.chmod(key_path, 0o600)  # O_EXCL mode may still be widened by umask
+            return key_path.read_bytes()
         except OSError as exc:
             logger.warning("vitals: hmac key unavailable (fingerprints disabled): %s", exc)
+            if created:
+                try:
+                    key_path.unlink()  # never leave an unused key on disk
+                except OSError:
+                    pass
             return b""
 
     def fingerprint(self, text: str) -> str | None:
@@ -223,6 +294,16 @@ class MetricsStore:
 
     # ── Connection (TraceRecorder-grade degradation) ──────────────────────
 
+    def _chmod_sidecar_files(self) -> None:
+        """C2 parity: the sidecar's on-disk footprint is THREE files."""
+        for path in (
+            self.db_path,
+            self.db_path.with_name(self.db_path.name + "-wal"),
+            self.db_path.with_name(self.db_path.name + "-shm"),
+        ):
+            if path.exists():
+                os.chmod(path, 0o600)
+
     def _conn(self) -> sqlite3.Connection | None:
         if self._closed:
             return None
@@ -235,14 +316,19 @@ class MetricsStore:
                         self.db_path.parent.mkdir(parents=True, exist_ok=True)
                         conn = sqlite3.connect(str(self.db_path), timeout=0.25)
                         conn.row_factory = sqlite3.Row
+                        # chmod BEFORE the WAL pragma: SQLite propagates the
+                        # mode to -wal/-shm when it creates them.
+                        os.chmod(self.db_path, 0o600)
                         conn.execute("PRAGMA journal_mode=WAL")
                         conn.execute("PRAGMA busy_timeout=250")
                         for stmt in SCHEMA_SQL:
                             conn.execute(stmt)
                         conn.commit()
-                        os.chmod(self.db_path, 0o600)  # C2 parity with the main store
+                        self._chmod_sidecar_files()  # belt and braces
                         self._local.conn = conn
-                    except sqlite3.Error as exc:
+                    except (sqlite3.Error, OSError) as exc:
+                        # OSError: mkdir/chmod can fail on FUSE/NFS mounts —
+                        # the sink must degrade, never break the host.
                         logger.warning("vitals: sidecar unavailable (non-fatal): %s", exc)
                         return None
         return conn
@@ -261,12 +347,16 @@ class MetricsStore:
     ) -> int | None:
         """Record one assemble call + its injected blocks. Non-fatal.
 
-        ``result`` is the ContextBlock dict returned by mnemos
-        ``assemble_context`` (see mnemos ``assemble.py``): ``text``,
+        ``result`` is the ContextBlock dict returned by the host's
+        ``assemble_context`` (see vesmaro ``assemble.py``): ``text``,
         ``blocks`` (with memory_id/score/tokens/redactions/ccr_hashes),
         ``tokens`` and ``stats``. This is the ONLY place the host needs
         to call; the boundary rule (§3) keeps the assemble pipeline
         itself write-free — recording happens after the result exists.
+
+        ``latency_ms`` is accepted for call-site symmetry but not stored:
+        per the born-final contract latency lives on the VERB row (phase
+        A2); ``assemble_metrics`` carries no latency column.
 
         Returns the new ``assemble_metrics.id`` or ``None`` on failure.
         """
@@ -311,8 +401,18 @@ class MetricsStore:
             self._record_blocks(conn, metrics_id, blocks)
             conn.commit()
             return metrics_id
-        except (sqlite3.Error, ValueError, TypeError, AttributeError) as exc:
+        except (sqlite3.Error, ValueError, TypeError, AttributeError, OSError) as exc:
             self._fail("record_assemble", exc)
+            # Roll the partial write back NOW: an open transaction would
+            # commit a phantom assemble row on the NEXT successful call
+            # (dishonest telemetry) and hold the WAL write lock, silently
+            # dropping other threads' 250 ms-timeout writes until then.
+            conn = getattr(self._local, "conn", None)
+            if conn is not None:
+                try:
+                    conn.rollback()
+                except sqlite3.Error:
+                    pass
             return None
 
     def _record_blocks(self, conn: sqlite3.Connection, metrics_id: int, blocks: list[dict]) -> None:
@@ -323,7 +423,10 @@ class MetricsStore:
                 (
                     metrics_id,
                     f"{metrics_id}:{i}",  # opaque positional id (no content echo)
-                    str(b.get("memory_id")),
+                    # "unknown" sentinel keeps row parity with blocks_count
+                    # (assembly-coverage invariant) when upstream drifts;
+                    # a literal "None" string would lie about a real id.
+                    str(b.get("memory_id") or "unknown"),
                     str(b.get("content_type") or "memory"),
                     float(b.get("score") or 0.0),
                     int(b.get("tokens") or 0),
@@ -374,12 +477,27 @@ class MetricsStore:
                     cur = conn.execute(f"DELETE FROM {table} WHERE ts < ?", (cutoff,))
                 deleted[table] = cur.rowcount
             conn.commit()
-            conn.execute("VACUUM")
-        finally:
-            pass
+        except Exception:
+            # fail-loud, but never leave the failed deletes half-open —
+            # an open write transaction would freeze the hook path.
+            try:
+                conn.rollback()
+            except sqlite3.Error:
+                pass
+            raise
+        conn.execute("VACUUM")  # quiet-window contract; failure = job alert
+        try:
+            self._chmod_sidecar_files()  # WAL/SHM recreated by VACUUM — re-pin
+        except OSError as exc:
+            logger.warning("vitals: post-vacuum chmod failed (non-fatal): %s", exc)
         return deleted
 
     def close(self) -> None:
+        """Close the calling thread's connection (idempotent).
+
+        Other threads' connections close when their threads exit (the
+        host owns their lifecycle; sqlite3.Connection is GC-safe).
+        """
         if not self._closed:
             self._closed = True
             conn = getattr(self._local, "conn", None)

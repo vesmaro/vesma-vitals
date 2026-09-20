@@ -205,9 +205,102 @@ class TestNonFatalDegradation:
             except Exception:
                 pytest.fail(f"record_assemble raised on {garbage!r}")
 
+    def test_filesystem_errors_do_not_reach_host(self, tmp_path: Path, monkeypatch):
+        """M1: mkdir/chmod OSError (FUSE/NFS) must degrade, never raise."""
+        s = MetricsStore(tmp_path / "metrics.sqlite")
+        monkeypatch.setattr(
+            "mnemos_vitals.sink.os.chmod",
+            lambda *a, **k: (_ for _ in ()).throw(OSError("simulated FUSE chmod")),
+        )
+        assert s.record_assemble(make_result()) is None  # no exception
+        s.close()
+
+    def test_failed_write_rolls_back_no_phantom_rows(self, store: MetricsStore):
+        """M2: a mid-transaction failure must not commit a phantom row on
+        the next call, and must not leave the write transaction open."""
+        bad = make_result()
+        bad["blocks"] = [{"memory_id": "m", "score": "NOT-A-FLOAT"}]  # float() raises
+        assert store.record_assemble(bad) is None  # swallowed
+
+        conn = sqlite3.connect(store.db_path)
+        assert not conn.in_transaction, "failed write left the transaction open"
+        n_assemble = conn.execute("SELECT COUNT(*) FROM assemble_metrics").fetchone()[0]
+        n_blocks = conn.execute("SELECT COUNT(*) FROM injection_blocks").fetchone()[0]
+        conn.close()
+        assert n_assemble == 0, "phantom assemble row committed by a later call"
+        assert n_blocks == 0, "orphan injection rows committed"
+
+        # the next GOOD call commits exactly its own rows
+        good_id = store.record_assemble(make_result())
+        assert good_id is not None
+        conn = sqlite3.connect(store.db_path)
+        n_assemble = conn.execute("SELECT COUNT(*) FROM assemble_metrics").fetchone()[0]
+        n_good_blocks = conn.execute(
+            "SELECT COUNT(*) FROM injection_blocks WHERE metrics_id=?", (good_id,)
+        ).fetchone()[0]
+        conn.close()
+        assert n_assemble == 1
+        assert n_good_blocks == 2
+
+    def test_missing_memory_id_gets_sentinel_not_none_string(self, store: MetricsStore):
+        result = make_result()
+        result["blocks"] = [{"content_type": "note", "score": 0.5, "tokens": 10}]
+        mid = store.record_assemble(result)
+        assert mid is not None
+        conn = sqlite3.connect(store.db_path)
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT memory_id FROM injection_blocks WHERE metrics_id=?", (mid,)
+        ).fetchone()
+        assert row["memory_id"] == "unknown"  # row parity kept, no "None" lie
+        conn.close()
+
+
+class TestMetaAllowlist:
+    """m3: C5 meta gate is enforced in code before A2 wires record_verb."""
+
+    def test_unknown_key_refuses(self):
+        from mnemos_vitals.sink import validate_meta
+
+        assert validate_meta({"error_type": "ValueError"}) == {"error_type": "ValueError"}
+        assert validate_meta({"nonsense_key": 1}) is None
+
+    def test_error_type_must_be_class_name(self):
+        from mnemos_vitals.sink import validate_meta
+
+        assert validate_meta({"error_type": "sqlite3.OperationalError"}) is not None
+        assert validate_meta({"error_type": "boom: detail text"}) is None
+
+    def test_counters_are_small_int_dict(self):
+        from mnemos_vitals.sink import validate_meta
+
+        assert validate_meta({"counters": {"ttl_deleted": 3, "lru_evicted": 1}}) is not None
+        assert validate_meta({"counters": {"bad": "text"}}) is None
+        assert validate_meta({"counters": {"bad": True}}) is None
+
+    def test_nonscalar_and_overlong_refuse(self):
+        from mnemos_vitals.sink import validate_meta
+
+        assert validate_meta({"peer_id": ["list"]}) is None
+        assert validate_meta({"peer_id": "x" * 65}) is None
+        assert validate_meta("not-a-dict") is None
+        assert validate_meta(None) == {}
+
 
 class TestRetention:
-    def test_ttls_applied(self, store: MetricsStore, tmp_path: Path):
+    def test_ttl_constants_pinned(self):
+        """m4: a TTL drift must fail here, not silently in production."""
+        from mnemos_vitals.schema import RETENTION_DAYS
+
+        assert RETENTION_DAYS == {
+            "verb_metrics": 30,
+            "verb_metrics_hourly": 400,
+            "assemble_metrics": 90,
+            "injection_blocks": 90,
+            "usage_reports": 90,
+        }
+
+    def test_ttls_applied_with_child_cascade(self, store: MetricsStore):
         import time
 
         mid = store.record_assemble(make_result())
@@ -217,14 +310,24 @@ class TestRetention:
         conn.row_factory = sqlite3.Row
         old = time.time() - 400 * 86400
         conn.execute("UPDATE assemble_metrics SET ts=? WHERE id=?", (old, mid))
+        # a usage row hangs off the same (now-stale) parent — phase C shape
+        conn.execute(
+            "INSERT INTO usage_reports (metrics_id, block_ids_touched_json,"
+            " tokens_out, wrong_tool_flag) VALUES (?, '[]', 5, 0)",
+            (mid,),
+        )
         conn.commit()
-        conn.close()
         deleted = store.run_retention()
         assert deleted["assemble_metrics"] == 1
-        conn = sqlite3.connect(store.db_path)
-        conn.row_factory = sqlite3.Row
-        n = conn.execute("SELECT COUNT(*) FROM assemble_metrics").fetchone()[0]
-        assert n == 0
+        counts = {
+            t: conn.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]
+            for t in ("assemble_metrics", "injection_blocks", "usage_reports")
+        }
+        assert counts == {
+            "assemble_metrics": 0,
+            "injection_blocks": 0,  # m4: the C4 cascade is actually asserted
+            "usage_reports": 0,
+        }
         conn.close()
 
     def test_fail_loud_on_missing_sidecar(self, tmp_path: Path):
@@ -235,9 +338,12 @@ class TestRetention:
 
 
 class TestPermissions:
-    def test_sidecar_created_0600(self, tmp_path: Path):
+    def test_sidecar_created_0600_all_three_files(self, tmp_path: Path):
+        """M3: the sidecar footprint is db + wal + shm — all 0600 (C2)."""
         s = MetricsStore(tmp_path / "metrics.sqlite")
         s.record_assemble(make_result())
-        mode = s.db_path.stat().st_mode & 0o777
-        assert mode == 0o600  # C2 parity with the main store
+        for name in ("metrics.sqlite", "metrics.sqlite-wal", "metrics.sqlite-shm"):
+            p = tmp_path / name
+            assert p.exists(), f"{name} missing"
+            assert p.stat().st_mode & 0o777 == 0o600, f"{name} is not 0600"
         s.close()
