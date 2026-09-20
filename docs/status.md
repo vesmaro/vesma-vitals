@@ -11,7 +11,7 @@
 | Методология (канон) | 100% | Завершено — `docs/methodology.md` |
 | Архитектура (спецификация) | 100% | Завершено — `docs/architecture.md` |
 | Фундамент репозитория | 100% | Завершено — README, decisions, статус, каркас |
-| Фаза A (sink + пассивный сбор) | 70% | Библиотечное ядро на `feat/phase-a-sink` (`31d5258`…`0e4e61f`, 33 теста, ruff 0). Осталось: интеграционный PR в vesmaro (hook/MCP-граница) + решение о default-on |
+| Фаза A (sink + пассивный сбор) | 75% | **Библиотечный слайс закрыт и влит в main** (`1a2380b`, ревью в 2 прохода — REQUEST-CHANGES → все мажоры верифицированы → APPROVE; 33 теста, ruff 0). Осталось: интеграционный PR в vesmaro (hook/MCP-граница) + решение о default-on |
 | Фаза A2 (verb-леджер, весь функционал) | 0% | **Разблокирована**: #249 закрыт (2026-09-14, фикс #304). Первый шаг A2 — verb-леджер + экспозер (подтверждение аддендума у владельца) |
 | Фаза B (динамичность + S5 v1 + F8) | 0% | Не начато — преперегистрация до прогона |
 | Фазы C–E, F9-волны, doctor-P3 | 0% | Не начато |
@@ -66,7 +66,7 @@
 
 ## Фаза A — состояние деталей
 
-Залито на ветке `feat/phase-a-sink` (2026-09-09):
+Влит в main `1a2380b` (2026-09-20; история — ветка `feat/phase-a-sink`, 7 коммитов):
 
 - `src/mnemos_vitals/schema.py` — born-final allowlist, 5 таблиц, C5-allowlist
   meta_json, retention-константы;
@@ -75,9 +75,12 @@
   в `metrics.sqlite.hkey` вне sidecar, 0600, без ротации), allowlist-проекция
   stage_stats (query — никогда, file — stem), retention fail-loud с
   child-table каскадом, chmod 0600;
-- `tests/` — 7 канареек C1 (born-final pin колонок + C3-ассерт) + 22
-  контракт-теста sink/meta/retention + 4 drift-guard; ruff 0 (line-length 100
-  по канону mnemos);
+- `tests/` — 7 канареек C1 (born-final pin колонок каждой таблицы + C3-ассерт
+  «session только в assemble_metrics») + 22 контракт-теста sink/meta/retention
+  + 4 drift-guard; ruff 0 (line-length 100 по канону mnemos);
+- ревью-история: проход 1 — REQUEST-CHANGES (4 мажора: OSError в host,
+  фантомные строки при failed write, WAL/SHM 0644, незакреплённый C3),
+  проход 2 — все фиксы верифицированы воспроизведением, APPROVE;
 - `docs/claims.md` — claims-ledger засеян (методология §6).
 
 Не входит в фазу A (по архитектуре): verb-леджер (A2), экспозер (A2,
