@@ -235,9 +235,7 @@ def validate_meta(meta: dict[str, Any] | None) -> dict[str, Any] | None:
     for key, value in meta.items():
         if key not in META_ALLOWLIST:
             return None
-        if value is None or isinstance(value, bool):
-            clean[key] = value
-        elif isinstance(value, int):
+        if value is None or isinstance(value, (bool, int)):
             clean[key] = value
         elif isinstance(value, float):
             if not math.isfinite(value):  # NaN/inf: json would emit garbage

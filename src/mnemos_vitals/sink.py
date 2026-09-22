@@ -140,9 +140,7 @@ def _project_stage_stats(stats: dict[str, Any]) -> dict[str, Any]:
         for key, value in payload.items():
             path = f"{stage}.{key}"
             self_ok = path in _STAGE_STATS_ALLOWLIST
-            if self_ok and (
-                value is None or isinstance(value, bool) or isinstance(value, int)
-            ):
+            if self_ok and (value is None or isinstance(value, (bool, int))):
                 out[path] = value
                 continue
             if self_ok and isinstance(value, float) and math.isfinite(value):
