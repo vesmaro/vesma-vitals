@@ -216,6 +216,8 @@ _ERROR_TYPE_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_.]{0,63}$")
 _COUNTER_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,31}$")
 
 _META_STR_LIMIT = 64
+#: Keys whose values are integers by definition — strings refused.
+_INT_ONLY_KEYS = frozenset({"exit_code", "retry", "queue_depth", "items", "budget"})
 
 
 def validate_meta(meta: dict[str, Any] | None) -> dict[str, Any] | None:
@@ -259,6 +261,8 @@ def validate_meta(meta: dict[str, Any] | None) -> dict[str, Any] | None:
         elif isinstance(value, str) and len(value) <= _META_STR_LIMIT:
             if key == "error_type" and not _ERROR_TYPE_RE.match(value):
                 return None
+            if key in _INT_ONLY_KEYS:
+                return None  # integer-by-definition key carrying a string
             clean[key] = value
         else:
             return None
