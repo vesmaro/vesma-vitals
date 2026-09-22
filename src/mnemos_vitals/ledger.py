@@ -30,9 +30,11 @@ import json
 import logging
 import math
 import sqlite3
+import threading
+from collections.abc import Callable
 from contextlib import suppress
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from mnemos_vitals.schema import validate_meta
 
@@ -65,6 +67,11 @@ class VerbLedgerMixin:
     connection lifecycle stays in the sink — same-package composition,
     no runtime dependency from the sink on this file's specifics.
     """
+
+    if TYPE_CHECKING:  # structural contract with the host sink class
+        _conn: Callable[..., sqlite3.Connection | None]
+        _fail: Callable[[str, Exception], None]
+        _local: threading.local
 
     def record_verb(
         self,
@@ -161,7 +168,7 @@ class VerbLedgerMixin:
                 groups.setdefault(global_key, []).append(latency)
                 groups.setdefault(private_key, []).append(latency)
             conn.execute("DELETE FROM verb_metrics_hourly WHERE hour = ?", (hour,))
-            out: list[tuple] = []
+            out: list[tuple[Any, ...]] = []
             for key, lats in sorted(groups.items()):
                 lats.sort()
                 project = key[3] if len(key) > 3 else None
