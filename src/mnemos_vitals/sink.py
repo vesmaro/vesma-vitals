@@ -38,6 +38,7 @@ import threading
 from contextlib import suppress
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 from mnemos_vitals.schema import (
     META_ALLOWLIST,
@@ -104,7 +105,7 @@ _LIST_VALUE_LIMIT = 16
 _ENUM_STR_PATHS = frozenset({"recall.query_source", "recall.lens.name"})
 
 
-def _project_stage_stats(stats: dict) -> dict:
+def _project_stage_stats(stats: dict[str, Any]) -> dict[str, Any]:
     """Allowlisted flattening of the assemble stats dict (never verbatim).
 
     Walks ``stats`` two levels deep into dotted ``stage.key`` paths and
@@ -115,7 +116,7 @@ def _project_stage_stats(stats: dict) -> dict:
     """
     if not isinstance(stats, dict):
         return {}
-    out: dict = {}
+    out: dict[str, Any] = {}
     for stage, payload in stats.items():
         if stage == "stages":
             if isinstance(payload, list):
@@ -168,7 +169,7 @@ _ERROR_TYPE_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_.]{0,63}$")
 _META_STR_LIMIT = 64
 
 
-def validate_meta(meta: dict | None) -> dict | None:
+def validate_meta(meta: dict[str, Any] | None) -> dict[str, Any] | None:
     """C5 gate for verb ``meta_json`` — fail-closed, enforced (m3).
 
     Returns the sanitised dict, or ``None`` when the meta must be
@@ -183,7 +184,7 @@ def validate_meta(meta: dict | None) -> dict | None:
         return {}
     if not isinstance(meta, dict):
         return None
-    clean: dict = {}
+    clean: dict[str, Any] = {}
     for key, value in meta.items():
         if key not in META_ALLOWLIST:
             return None
@@ -340,7 +341,7 @@ class MetricsStore:
 
     def record_assemble(
         self,
-        result: dict,
+        result: dict[str, Any],
         *,
         verb_row_id: int | None = None,
         latency_ms: float | None = None,
@@ -397,7 +398,7 @@ class MetricsStore:
                     self.fingerprint(result.get("text") or ""),
                 ),
             )
-            metrics_id = int(cur.lastrowid)
+            metrics_id = int(cur.lastrowid or 0)  # rowids start at 1; 0 = absent
             self._record_blocks(conn, metrics_id, blocks)
             conn.commit()
             return metrics_id
@@ -413,7 +414,9 @@ class MetricsStore:
                     conn.rollback()
             return None
 
-    def _record_blocks(self, conn: sqlite3.Connection, metrics_id: int, blocks: list[dict]) -> None:
+    def _record_blocks(
+        self, conn: sqlite3.Connection, metrics_id: int, blocks: list[dict[str, Any]]
+    ) -> None:
         for i, b in enumerate(blocks):
             conn.execute(
                 "INSERT INTO injection_blocks (metrics_id, block_id, memory_id, source,"
@@ -454,10 +457,10 @@ class MetricsStore:
                 if table in child_tables:
                     continue  # counted implicitly via the parent delete
                 if table == "verb_metrics_hourly":
-                    cutoff = int((now - timedelta(days=days)).timestamp() // 3600)
-                    cur = conn.execute(f"DELETE FROM {table} WHERE hour < ?", (cutoff,))
+                    cutoff_hour = int((now - timedelta(days=days)).timestamp() // 3600)
+                    cur = conn.execute(f"DELETE FROM {table} WHERE hour < ?", (cutoff_hour,))
                 elif table == "assemble_metrics":
-                    cutoff = (now - timedelta(days=days)).timestamp()
+                    cutoff: float = (now - timedelta(days=days)).timestamp()
                     # children first — their only time anchor is the parent's ts
                     conn.execute(
                         "DELETE FROM injection_blocks WHERE metrics_id IN"
@@ -471,8 +474,8 @@ class MetricsStore:
                     )
                     cur = conn.execute(f"DELETE FROM {table} WHERE ts < ?", (cutoff,))
                 else:
-                    cutoff = (now - timedelta(days=days)).timestamp()
-                    cur = conn.execute(f"DELETE FROM {table} WHERE ts < ?", (cutoff,))
+                    cutoff_ts = (now - timedelta(days=days)).timestamp()
+                    cur = conn.execute(f"DELETE FROM {table} WHERE ts < ?", (cutoff_ts,))
                 deleted[table] = cur.rowcount
             conn.commit()
         except Exception:
