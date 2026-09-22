@@ -161,9 +161,7 @@ def _project_stage_stats(stats: dict[str, Any]) -> dict[str, Any]:
                     sub_path = f"{path}.{sub}"
                     if sub_path not in _STAGE_STATS_ALLOWLIST:
                         continue  # drift-tolerant: unknown keys dropped
-                    if sub_value is None or isinstance(sub_value, bool) or isinstance(
-                        sub_value, int
-                    ):
+                    if sub_value is None or isinstance(sub_value, (bool, int)):
                         out[sub_path] = sub_value
                     elif isinstance(sub_value, float) and not math.isfinite(sub_value):
                         continue  # NaN/inf never land
