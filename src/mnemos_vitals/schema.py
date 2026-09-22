@@ -179,6 +179,7 @@ META_ALLOWLIST: frozenset[str] = frozenset(
         "error_type",  # exception CLASS name only — text never
         "budget",  # mcp-only: the requested budget
         "retry",  # int, background surfaces
+        "exit_code",  # int, CLI surface
         "queue_depth",  # int, processor/federation points
         "items",  # int count, background points
         "rule_id",  # scanner/watcher rule identifier (id, not text)
@@ -235,13 +236,9 @@ def validate_meta(meta: dict[str, Any] | None) -> dict[str, Any] | None:
     for key, value in meta.items():
         if key not in META_ALLOWLIST:
             return None
-        if value is None or isinstance(value, (bool, int)):
-            clean[key] = value
-        elif isinstance(value, float):
-            if not math.isfinite(value):  # NaN/inf: json would emit garbage
-                return None
-            clean[key] = value
-        elif key == "counters":
+        if key == "counters":
+            # check BEFORE the scalar branch: bool/int would otherwise slip
+            # past the dict validation (m6)
             if (
                 not isinstance(value, dict)
                 or len(value) > 16
@@ -253,6 +250,12 @@ def validate_meta(meta: dict[str, Any] | None) -> dict[str, Any] | None:
             ):
                 return None
             clean[key] = dict(value)
+        elif value is None or isinstance(value, (bool, int)):
+            clean[key] = value
+        elif isinstance(value, float):
+            if not math.isfinite(value):  # NaN/inf: json would emit garbage
+                return None
+            clean[key] = value
         elif isinstance(value, str) and len(value) <= _META_STR_LIMIT:
             if key == "error_type" and not _ERROR_TYPE_RE.match(value):
                 return None

@@ -191,3 +191,28 @@ class TestExposition:
         store.rollup_hourly(hour=hour)
         text = render_exposition(store)
         assert 'verb="weird\\"verb"' in text
+
+
+class TestN4Followups:
+    def test_counters_scalar_refused(self):
+        """m6: counters must be a DICT — bool/int scalar slips the old order."""
+        from mnemos_vitals.sink import validate_meta
+
+        assert validate_meta({"counters": True}) is None
+        assert validate_meta({"counters": 5}) is None
+        assert validate_meta({"counters": {"ok": 1}}) is not None
+
+    def test_exit_code_allowlisted(self):
+        """n3: the CLI surface records exit_code explicitly."""
+        from mnemos_vitals.sink import validate_meta
+
+        assert validate_meta({"exit_code": 1}) is not None
+        assert validate_meta({"exit_code": "one"}) is None
+
+    def test_last_rolled_hour(self, store: MetricsStore):
+        assert store.last_rolled_hour() == 0
+        store.record_verb(
+            surface="mcp", verb="v", status="ok", latency_ms=1.0, ts=29000130 * 3600
+        )
+        store.rollup_hourly(hour=29000130)
+        assert store.last_rolled_hour() == 29000130

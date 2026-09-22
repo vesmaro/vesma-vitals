@@ -138,6 +138,18 @@ class VerbLedgerMixin:
                     conn.rollback()
             return None
 
+    def last_rolled_hour(self) -> int:
+        """Latest hour present in verb_metrics_hourly (epoch hour; 0 if none).
+
+        The tick uses this to catch up after downtime instead of silently
+        skipping every missed hour (m3).
+        """
+        conn = self._conn()
+        if conn is None:
+            return 0
+        row = conn.execute("SELECT MAX(hour) FROM verb_metrics_hourly").fetchone()
+        return int(row[0] or 0)
+
     def rollup_hourly(self, *, hour: int | None = None) -> int:
         """Aggregate one hour of verb_metrics into verb_metrics_hourly.
 
