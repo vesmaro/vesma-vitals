@@ -35,6 +35,7 @@ import re
 import secrets
 import sqlite3
 import threading
+from contextlib import suppress
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -261,10 +262,8 @@ class MetricsStore:
         except OSError as exc:
             logger.warning("vitals: hmac key unavailable (fingerprints disabled): %s", exc)
             if created:
-                try:
+                with suppress(OSError):
                     key_path.unlink()  # never leave an unused key on disk
-                except OSError:
-                    pass
             return b""
 
     def fingerprint(self, text: str) -> str | None:
@@ -410,10 +409,8 @@ class MetricsStore:
             # dropping other threads' 250 ms-timeout writes until then.
             conn = getattr(self._local, "conn", None)
             if conn is not None:
-                try:
+                with suppress(sqlite3.Error):
                     conn.rollback()
-                except sqlite3.Error:
-                    pass
             return None
 
     def _record_blocks(self, conn: sqlite3.Connection, metrics_id: int, blocks: list[dict]) -> None:
@@ -481,10 +478,8 @@ class MetricsStore:
         except Exception:
             # fail-loud, but never leave the failed deletes half-open —
             # an open write transaction would freeze the hook path.
-            try:
+            with suppress(sqlite3.Error):
                 conn.rollback()
-            except sqlite3.Error:
-                pass
             raise
         conn.execute("VACUUM")  # quiet-window contract; failure = job alert
         try:
@@ -503,10 +498,8 @@ class MetricsStore:
             self._closed = True
             conn = getattr(self._local, "conn", None)
             if conn is not None:
-                try:
+                with suppress(sqlite3.Error):
                     conn.close()
-                except sqlite3.Error:
-                    pass
                 self._local.conn = None
 
     @property
