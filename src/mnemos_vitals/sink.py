@@ -30,6 +30,7 @@ import hashlib
 import hmac
 import json
 import logging
+import math
 import os
 import re
 import secrets
@@ -40,11 +41,14 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from mnemos_vitals.ledger import VerbLedgerMixin
 from mnemos_vitals.schema import (
-    META_ALLOWLIST,
     RETENTION_DAYS,
     SCHEMA_SQL,
     TABLE_NAMES,
+)
+from mnemos_vitals.schema import (
+    validate_meta as validate_meta,  # re-export: part of the sink contract
 )
 
 logger = logging.getLogger("mnemos_vitals.sink")
@@ -136,9 +140,14 @@ def _project_stage_stats(stats: dict[str, Any]) -> dict[str, Any]:
         for key, value in payload.items():
             path = f"{stage}.{key}"
             self_ok = path in _STAGE_STATS_ALLOWLIST
-            if self_ok and (value is None or isinstance(value, (int, float, bool))):
+            if self_ok and (
+                value is None or isinstance(value, bool) or isinstance(value, int)
+            ):
                 out[path] = value
                 continue
+            if self_ok and isinstance(value, float) and math.isfinite(value):
+                out[path] = value
+                continue  # NaN/inf never land (json would emit non-standard)
             if self_ok and path == "filter.profiles" and isinstance(value, list):
                 # profile names are enums — drop strays, never truncate
                 out[path] = [
@@ -154,60 +163,19 @@ def _project_stage_stats(stats: dict[str, Any]) -> dict[str, Any]:
                     sub_path = f"{path}.{sub}"
                     if sub_path not in _STAGE_STATS_ALLOWLIST:
                         continue  # drift-tolerant: unknown keys dropped
-                    if sub_value is None or isinstance(sub_value, (int, float, bool)):
+                    if sub_value is None or isinstance(sub_value, bool) or isinstance(
+                        sub_value, int
+                    ):
                         out[sub_path] = sub_value
+                    elif isinstance(sub_value, float) and not math.isfinite(sub_value):
+                        continue  # NaN/inf never land
                     elif sub_path in _ENUM_STR_PATHS and isinstance(sub_value, str):
                         out[sub_path] = sub_value[:_STR_VALUE_LIMIT]
             # anything else (raw text, deeper nesting) never leaves
     return out
 
 
-#: ``error_type`` must look like an exception CLASS name — exception text
-#: never enters the sidecar (C5).
-_ERROR_TYPE_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_.]{0,63}$")
-
-_META_STR_LIMIT = 64
-
-
-def validate_meta(meta: dict[str, Any] | None) -> dict[str, Any] | None:
-    """C5 gate for verb ``meta_json`` — fail-closed, enforced (m3).
-
-    Returns the sanitised dict, or ``None`` when the meta must be
-    REFUSED: unknown key (not in ``META_ALLOWLIST``), non-scalar value,
-    over-long string, or ``error_type`` that is not a class name. The
-    caller logs the refusal — refusal is loud, never a silent drop, and
-    never fatal to the host. Phase A2's ``record_verb`` must route every
-    meta through this function; landing it in phase A means a silent or
-    verbatim implementation cannot pass the suite.
-    """
-    if meta is None:
-        return {}
-    if not isinstance(meta, dict):
-        return None
-    clean: dict[str, Any] = {}
-    for key, value in meta.items():
-        if key not in META_ALLOWLIST:
-            return None
-        if value is None or isinstance(value, (int, float, bool)):
-            clean[key] = value
-        elif key == "counters":
-            # small-int tallies only (e.g. ccr cleanup counters)
-            if not isinstance(value, dict) or not all(
-                isinstance(v, int) and not isinstance(v, bool) and abs(v) <= 10**12
-                for v in value.values()
-            ):
-                return None
-            clean[key] = dict(value)
-        elif isinstance(value, str) and len(value) <= _META_STR_LIMIT:
-            if key == "error_type" and not _ERROR_TYPE_RE.match(value):
-                return None
-            clean[key] = value
-        else:
-            return None
-    return clean
-
-
-class MetricsStore:
+class MetricsStore(VerbLedgerMixin):
     """Allowlist sink into the sidecar — the guest's ONLY write path.
 
     Thread-safety mirrors the host's ``SQLiteStore`` bootstrap pattern
