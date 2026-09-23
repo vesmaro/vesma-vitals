@@ -172,7 +172,16 @@ class TestLiveContractAbsorbed:
         ).fetchall()
         assert len(blocks) == 3
         assert [b["source"] for b in blocks] == ["rule", "decision", "note"]
-        assert json.loads(blocks[1]["ccr_origin"]) == ["cafe1234", "beef5678"]
+        # Phase B: ccr_origin is {"hashes": [...], "block_fp": "<hmac>"}
+        # (the born-final column pins its COLUMNS, not its payload shape);
+        # a ccr-expanded block has origin hashes, a plain one has none.
+        payload_b1 = json.loads(blocks[1]["ccr_origin"])
+        assert payload_b1["hashes"] == ["cafe1234", "beef5678"]
+        assert payload_b1["block_fp"] == store.fingerprint("decision content — never persisted")
+        assert json.loads(blocks[0]["ccr_origin"]) == {
+            "hashes": [],
+            "block_fp": store.fingerprint(f"{SECRET_CONTENT} #1"),
+        }
         conn.close()
         store.close()
 

@@ -117,7 +117,15 @@ class TestRecordAssemble:
         assert rows[0]["memory_id"] == "mem-0"
         assert rows[0]["source"] == "note"
         assert rows[0]["tokens"] == 40
-        assert json.loads(rows[1]["ccr_origin"]) == ["abc123"]
+        # Phase B payload shape: {"hashes": [...], "block_fp": "<hmac>"}
+        payload = json.loads(rows[1]["ccr_origin"])
+        assert payload["hashes"] == ["abc123"]
+        assert payload["block_fp"] == store.fingerprint(
+            "RAW CONTENT 1 — must never reach the sidecar"
+        )
+        assert payload["block_fp"] is not None  # HMAC hex, not a raw-text echo
+        assert json.loads(rows[0]["ccr_origin"])["hashes"] == []
+        assert json.loads(rows[0]["ccr_origin"])["block_fp"] is not None
         conn.close()
 
     def test_raw_query_never_persisted(self, store: MetricsStore):
