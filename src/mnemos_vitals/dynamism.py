@@ -99,9 +99,7 @@ def _load_ccr_origin(raw: str | None) -> tuple[list[str], str | None]:
     if isinstance(payload, dict):
         hashes = payload.get("hashes")
         block_fp = payload.get("block_fp")
-        clean = (
-            [h for h in hashes if isinstance(h, str)] if isinstance(hashes, list) else []
-        )
+        clean = [h for h in hashes if isinstance(h, str)] if isinstance(hashes, list) else []
         return clean, block_fp if isinstance(block_fp, str) else None
     if isinstance(payload, list):  # legacy pre-phase-B shape
         return [h for h in payload if isinstance(h, str)], None
@@ -145,11 +143,7 @@ def corridor_gate(
         reasons.append(
             f"zero_uniqueness_pair_share {zero_share:.4f} > max_zero_share {max_zero_share}"
         )
-    return (
-        {"status": "FAIL", "reasons": reasons}
-        if reasons
-        else {"status": "PASS", "reasons": []}
-    )
+    return {"status": "FAIL", "reasons": reasons} if reasons else {"status": "PASS", "reasons": []}
 
 
 def falsifier_level(report: dict[str, Any]) -> float | None:
@@ -183,8 +177,7 @@ class DynamismAnalyzer:
             raise RuntimeError("sidecar unavailable")
         if project is None:
             rows = conn.execute(
-                "SELECT id, query_source FROM assemble_metrics"
-                " WHERE session = ? ORDER BY ts, id",
+                "SELECT id, query_source FROM assemble_metrics WHERE session = ? ORDER BY ts, id",
                 (session,),
             ).fetchall()
         else:
@@ -237,6 +230,9 @@ class DynamismAnalyzer:
     def _session_report(self, session: str, *, project: str | None) -> dict[str, Any]:
         assemblies = self._read_assemblies(session, project)
         n = len(assemblies)
+        # key-set contract: EVERY report shape carries every key (OK reports
+        # carry None placeholders for axes it cannot compute; NO-DATA/degraded
+        # carry an empty reasons list) — the docstring promise is exact.
         report: dict[str, Any] = {
             "session": session,
             "project": project,
@@ -248,6 +244,9 @@ class DynamismAnalyzer:
             "zero_uniqueness_pair_share": None,
             "pairs_sampled": 0,
             "sampling": "none",
+            "static_pairs": None,
+            "distinct_pairs": None,
+            "reasons": [],
         }
         if n == 0:
             report["status"] = "NO-DATA"
@@ -255,9 +254,9 @@ class DynamismAnalyzer:
             return report
 
         # explicit_hint_share — precondition metric (canon §3.4).
-        report["explicit_hint_share"] = sum(
-            1 for a in assemblies if a.query_source == "explicit"
-        ) / n
+        report["explicit_hint_share"] = (
+            sum(1 for a in assemblies if a.query_source == "explicit") / n
+        )
 
         if all(len(a.block_pairs) == 0 for a in assemblies):
             # No block fingerprints at all (pre-phase-B corpus): the
@@ -278,7 +277,10 @@ class DynamismAnalyzer:
                 counts[pair] = counts.get(pair, 0) + 1
         static_counts = [c for p, c in counts.items() if c / n >= STATIC_SHARE_THRESHOLD]
         total_occurrences = sum(counts.values())
-        static_share = sum(static_counts) / total_occurrences if total_occurrences else 0.0
+        if not total_occurrences:  # unreachable: the all-empty case returned above —
+            # kept LOUD so a future edit cannot fabricate ratio=1.0 (§3.4)
+            raise RuntimeError("static axis invariant broken: zero occurrences past guard")
+        static_share = sum(static_counts) / total_occurrences
         report["static_share"] = static_share
         report["context_dynamism_ratio"] = 1.0 - static_share
         report["static_pairs"] = len(static_counts)
@@ -320,9 +322,13 @@ class DynamismAnalyzer:
         """
         indexes = range(n)
         all_pairs = list(combinations(indexes, 2))
+        # (n > PAIR_FULL_LIMIT) => len(all_pairs) >= C(21,2) = 210 > 190, so the
+        # second clause is dead today; kept as a guard so a future limit change
+        # (e.g. full up to 25) cannot silently overflow the sampled branch.
         if n <= PAIR_FULL_LIMIT or len(all_pairs) <= PAIR_SAMPLE_CAP:
             return all_pairs, len(all_pairs)
         seed = hashlib.blake2b(session.encode("utf-8"), digest_size=8).digest()
+
         # Seed only reorders, never drops; digest of seed+ordinals is a
         # stable total order across runs and processes.
         def pair_key(pair: tuple[int, int]) -> bytes:
