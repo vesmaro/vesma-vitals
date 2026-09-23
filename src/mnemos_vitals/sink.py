@@ -319,6 +319,12 @@ class MetricsStore(VerbLedgerMixin):
         to call; the boundary rule (§3) keeps the assemble pipeline
         itself write-free — recording happens after the result exists.
 
+        Since phase B, each block's ``content`` is reduced AT WRITE TIME
+        to a keyed HMAC stored inside the ``ccr_origin`` JSON payload of
+        its ``injection_blocks`` row (block fingerprint — the static-block
+        and uniqueness input for the dynamism zone). Only the digest
+        crosses this boundary; raw block text never reaches the sidecar.
+
         ``latency_ms`` is accepted for call-site symmetry but not stored:
         per the born-final contract latency lives on the VERB row (phase
         A2); ``assemble_metrics`` carries no latency column.
@@ -381,7 +387,23 @@ class MetricsStore(VerbLedgerMixin):
     def _record_blocks(
         self, conn: sqlite3.Connection, metrics_id: int, blocks: list[dict[str, Any]]
     ) -> None:
+        """One row per injected block, block fingerprint inside ``ccr_origin``.
+
+        Phase B (dynamism zone): the per-block keyed HMAC rides in the
+        ``ccr_origin`` TEXT JSON payload — ``{"hashes": [...], "block_fp":
+        "<hmac>"}``. The column tuple is born-final (tests/test_canary_c1.py)
+        and gains nothing; the payload SHAPE is not part of that pin.
+        Pre-phase-B rows carry the legacy array payload; readers tolerate
+        both (see mnemos_vitals.dynamism).
+        """
         for i, b in enumerate(blocks):
+            content = b.get("content")
+            # Non-string content has no fingerprint claim (None) — the
+            # analyzer excludes such blocks rather than inventing identity.
+            block_fp = self.fingerprint(content) if isinstance(content, str) else None
+            hashes = b.get("ccr_hashes")
+            if not isinstance(hashes, list):
+                hashes = []  # drifted shapes never reach JSON as free text
             conn.execute(
                 "INSERT INTO injection_blocks (metrics_id, block_id, memory_id, source,"
                 " score, tokens, ccr_origin) VALUES (?,?,?,?,?,?,?)",
@@ -395,7 +417,9 @@ class MetricsStore(VerbLedgerMixin):
                     str(b.get("content_type") or "memory"),
                     float(b.get("score") or 0.0),
                     int(b.get("tokens") or 0),
-                    json.dumps(b.get("ccr_hashes") or [], separators=(",", ":")),
+                    json.dumps(
+                        {"hashes": hashes, "block_fp": block_fp}, separators=(",", ":")
+                    ),
                 ),
             )
 
