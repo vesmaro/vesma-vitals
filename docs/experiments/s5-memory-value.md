@@ -71,3 +71,27 @@ PASS/FAIL/NO-DATA; NO-DATA ≠ ноль, никогда не зелёный. Г�
 v1 — синтетика: цифры не экстраполируются на реальные сессии (фаза D —
 opt-in per capture, санитизация fail-closed). «Saved X» из пассивных данных
 запрещён (методология §1.1).
+
+
+## ИСПОЛНЕНИЕ (2026-09-24) — окно порогов закрыто
+
+- **Baseline-прогон** (`reports/local/s5-baseline/`, unfrozen, exit 0):
+  H1 PASS / H2 PASS / H3 PASS / H4 UNFROZEN;
+  task_success: M = 1.000 (130 задач, 110 сессий), B0-naive = 0.846,
+  B0-file = 0.185, B0-full = 0.846; prompt_tokens: M = 78.5 vs
+  B0-naive = 1164.0 (p25/p75: 17/278 vs 517/2557);
+  gross 169 891 − write_cost 6 358 = **net_savings 163 533 токенов**,
+  бутстреп-CI95 [132 563, 195 697], value_ratio 0.842;
+  динамизм: median ratio 0.091, zero-share median 0.0.
+- **Заморозка порогов** (по окну «после baseline, до решающего»):
+  `min_dynamism = 0.05` (baseline median 0.091, мин 0.020 — коридор
+  держит мин выше floor с запасом), `max_zero_uniqueness_share = 0.05`
+  (baseline median/max 0.0); delta_task_success остаётся 0.10 (прег,
+  не фризится флагом — F5-гвирд).
+- **Решающий прогон** (frozen, exit 0): **H1 PASS / H2 PASS / H3 PASS /
+  H4 PASS**; headline «net_savings 163 533 токенов (H1+H2 valid)»;
+  single-look исчерпан.
+
+Это СИНТЕТИКА v1: цифры не экстраполируются на реальные сессии (фаза D —
+opt-in per capture). B0-file negative-stratum failure — recipe artifact
+(дисклеймер в отчёте).
