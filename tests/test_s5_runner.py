@@ -525,17 +525,19 @@ class TestFreeze:
         code = main([
             "--workload", str(tape), "--out", str(out_dir),
             "--thresholds",
-            "delta_task_success=0.10,min_dynamism=0.01,max_zero_uniqueness_share=0.9",
+            "min_dynamism=0.01,max_zero_uniqueness_share=0.9",
             "--freeze-thresholds",
         ])
         assert code == 0
         report = json.loads((out_dir / "s5-report.json").read_text(encoding="utf-8"))
         assert report["thresholds"]["status"] == "frozen"
+        # F5: delta is NOT part of the frozen values — it is pinned at the
+        # preregistered constant and reported separately
         assert report["thresholds"]["values"] == {
-            "delta_task_success": 0.10,
             "min_dynamism": 0.01,
             "max_zero_uniqueness_share": 0.9,
         }
+        assert report["thresholds"]["effective_delta_task_success"] == 0.10
         assert all(h["status"] == "PASS" for h in report["hypotheses"].values())
 
     def test_frozen_run_breach_exits_one(self, tape_path: Path, out_dir: Path) -> None:
@@ -543,10 +545,10 @@ class TestFreeze:
         code = main([
             "--workload", str(tape_path), "--out", str(out_dir),
             "--thresholds",
-            "delta_task_success=0.10,min_dynamism=0.99,max_zero_uniqueness_share=0.0",
+            "min_dynamism=0.99,max_zero_uniqueness_share=0.0",
             "--freeze-thresholds",
         ])
-        assert code == 1
+        assert code == 1  # delta stays at prereg (F5) — only H4 thresholds frozen
         report = json.loads((out_dir / "s5-report.json").read_text(encoding="utf-8"))
         assert report["hypotheses"]["H4"]["status"] == "FAIL"
 
@@ -562,16 +564,19 @@ class TestFreeze:
     def test_frozen_run_without_h4_values_leaves_h4_unfrozen(
         self, tmp_path: Path, out_dir: Path
     ) -> None:
-        """Freezing δ only (no H4 corridor) must NOT mark H4 frozen."""
+        """Freezing without H4 corridor values must NOT mark H4 frozen; the
+        F5 guard keeps δ at the preregistered value (it is not a free flag)."""
         tape = medium_tape_path(tmp_path)
-        code = main([
-            "--workload", str(tape), "--out", str(out_dir),
-            "--thresholds", "delta_task_success=0.10", "--freeze-thresholds",
-        ])
-        assert code == 0  # only H1-H3 frozen; they PASS on this tape
-        report = json.loads((out_dir / "s5-report.json").read_text(encoding="utf-8"))
-        assert report["thresholds"]["status"] == "frozen"
-        assert report["hypotheses"]["H4"]["status"] == "UNFROZEN"
+        # F5 guard: frozen delta != PREREG_DELTA must fail loud. Freezing
+        # with NO values at all is ALSO refused (freeze = explicit values).
+        proc = subprocess.run(  # noqa: S603 — fixed argv, repo-local script
+            [sys.executable, str(STAND / "run.py"), "--workload", str(tape),
+             "--out", str(out_dir), "--freeze-thresholds"],
+            capture_output=True, text=True, timeout=300, cwd=str(REPO_ROOT),
+        )
+        assert "requires --thresholds" in (proc.stderr + proc.stdout)
+        # both refusals leave NO report file behind (nothing half-frozen)
+        assert not (out_dir / "s5-report.json").exists()
 
 
 # ── Privacy + audit (sidecar and store hygiene) ──────────────────────────────
@@ -707,9 +712,13 @@ class TestWorkloadValidation:
 
 class TestModuleShape:
     def test_parse_thresholds_allowlist(self) -> None:
-        parsed = parse_thresholds("delta_task_success=0.2,min_dynamism=0.5")
-        assert parsed == {"delta_task_success": 0.2, "min_dynamism": 0.5}
+        # F5: delta_task_success is NOT in the free-freeze allowlist — a
+        # weakened mandate requires a new pre-registration, not a flag.
+        parsed = parse_thresholds("min_dynamism=0.5,max_zero_uniqueness_share=0.1")
+        assert parsed == {"min_dynamism": 0.5, "max_zero_uniqueness_share": 0.1}
         assert parse_thresholds(None) is None
+        with pytest.raises(ValueError, match="unknown threshold key"):
+            parse_thresholds("delta_task_success=0.2")
 
     def test_standalone_cli_subprocess(self, tape_path: Path, tmp_path: Path) -> None:
         """The documented invocation works as a plain script."""

@@ -73,8 +73,10 @@ from typing import Any
 
 STAND_ROOT = Path(__file__).resolve().parent
 REPO_ROOT = STAND_ROOT.parents[2]
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
+_SRC_ROOT = REPO_ROOT / "src"  # a clean checkout: the package lives under src/
+for _p in (str(_SRC_ROOT), str(REPO_ROOT)):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
 from benchmarks.stands.s5_memory_value.workload import (  # noqa: E402
     Workload,
@@ -517,7 +519,8 @@ def _window_success(window_text: str, expect: dict[str, Any]) -> tuple[bool, dic
     """
     markers = list(expect.get("markers") or [])
     absent = list(expect.get("absent") or [])
-    min_ratio = float(expect.get("min_ratio") or 1.0)
+    mr = expect.get("min_ratio")
+    min_ratio = 1.0 if mr is None else float(mr)  # explicit None check (no silent 0.0 coercion)
     hits = [m for m in markers if m in window_text]
     share = (len(hits) / len(markers)) if markers else 1.0
     absent_present = [m for m in absent if m in window_text]
@@ -1021,7 +1024,15 @@ def run_s5(
 
         # ── hypothesis verdicts ──────────────────────────────────────
         frozen = bool(freeze) and bool(thresholds)
+        # frozen runs must keep the preregistered value (F5: weaken it = new
+        # pre-registration, not a CLI flag); baseline runs default to it.
         delta = float((thresholds or {}).get("delta_task_success", PREREG_DELTA))
+        if frozen and abs(delta - PREREG_DELTA) > 1e-12:
+            raise SystemExit(
+                "FROZEN-RUN GUARD: delta_task_success="
+                f"{delta} differs from the preregistered {PREREG_DELTA} —"
+                " a weaker mandate requires a NEW pre-registration document"
+            )
         min_dynamism = (thresholds or {}).get("min_dynamism")
         max_zero = (thresholds or {}).get("max_zero_uniqueness_share")
 
@@ -1034,7 +1045,7 @@ def run_s5(
         succ_b0file = _rate("B0-file")
 
         h1_ok = None if net_ci95 is None else net_ci95[0] > 0
-        h2_ok = None if succ_m is None or succ_b0n is None else succ_m >= succ_b0n - delta
+        h2_ok = None if succ_m is None or succ_b0n is None else succ_m + 1e-9 >= succ_b0n - delta
         h3_ok = (
             None if succ_m is None or succ_b0file is None else succ_m >= succ_b0file - delta
         )
@@ -1362,7 +1373,10 @@ def parse_thresholds(raw: str | None) -> dict[str, Any] | None:
     """Parse ``k=v`` comma pairs (k in the frozen-threshold allowlist)."""
     if raw is None:
         return None
-    allowed = {"delta_task_success", "min_dynamism", "max_zero_uniqueness_share"}
+    # delta_task_success is NOT freely freezable: a frozen run must keep the
+    # preregistered value (guarded right below) — weakening it means a new
+    # pre-registration, not a CLI flag.
+    allowed = {"min_dynamism", "max_zero_uniqueness_share"}
     out: dict[str, Any] = {}
     for part in raw.split(","):
         if not part:
