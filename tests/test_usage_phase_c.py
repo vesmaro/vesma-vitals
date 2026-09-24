@@ -217,7 +217,12 @@ class TestNonFatal:
         a = UsageAnalyzer(s)
         for report in (a.assemble_usage_rate(), a.touched_share(), a.wrong_tool_rate()):
             assert report["status"] == "NO-DATA"
-            assert report["reasons"] == ["analyzer degraded: RuntimeError"]
+            assert report["reasons"][0] == "analyzer degraded: RuntimeError"
+        # the touched_share degradation ALSO carries the frozen-prereg reason
+        # (review nit): the operator must see why the gate is soft-locked
+        a2 = UsageAnalyzer(s)
+        ts = a2.touched_share()
+        assert any("kappa" in r for r in ts["reasons"])
         s.close()  # idempotent
 
 
@@ -312,12 +317,24 @@ class TestUsageAnalytics:
 
 
 class TestKappaGate:
+    def test_block_id_boundary_128_accepted_129_refused(self, store):
+        """The 128-char id limit is exact: 128 accepted, 129 refused."""
+        mid = make_assemble(store)
+        assert mid is not None
+        assert store.record_usage(mid, block_ids_touched=["x" * 128]) is not None
+        assert store.record_usage(mid, block_ids_touched=["x" * 129]) is None
+
     def test_frozen_preregistration_constants(self):
         assert kappa_calibration_pending() is True
         assert KAPPA_MIN == 0.6
         assert KAPPA_CI_FLOOR == 0.5
         assert KAPPA_PREREGISTRATION == "docs/experiments/touched-rate-kappa.md"
         assert (REPO_ROOT / KAPPA_PREREGISTRATION).exists()  # the frozen doc is in-tree
+        # the doc must actually carry the frozen thresholds (a rewrite that
+        # silently drops them would leave these constants lying)
+        doc = (REPO_ROOT / KAPPA_PREREGISTRATION).read_text(encoding="utf-8")
+        assert "0.6" in doc and "0.5" in doc, "frozen thresholds missing from the doc"
+
 
     def test_corridor_eligible_false_while_pending(self, store: MetricsStore):
         mid = make_assemble(store, n_blocks=2)

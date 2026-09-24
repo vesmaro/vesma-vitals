@@ -267,7 +267,12 @@ class UsageAnalyzer:
         """A fully-keyed NO-DATA dict for a degraded read (key-set contract)."""
         out: dict[str, Any] = dict(keys)
         out["status"] = "NO-DATA"
-        out["reasons"] = [f"analyzer degraded: {type(exc).__name__}"]
+        out["reasons"] = [
+            f"analyzer degraded: {type(exc).__name__}",
+            # the frozen-prereg reason survives degradation — it is the exact
+            # line the operator reads while the gate is soft-locked
+            *([KAPPA_PENDING_REASON] if "touched_share" in keys else []),
+        ]
         return out
 
 

@@ -381,7 +381,15 @@ class MetricsStore(VerbLedgerMixin):
             self._record_blocks(conn, metrics_id, blocks)
             conn.commit()
             return metrics_id
-        except (sqlite3.Error, ValueError, TypeError, AttributeError, OSError) as exc:
+        except (
+            sqlite3.Error,
+            ValueError,
+            TypeError,
+            AttributeError,
+            OSError,
+            OverflowError,
+            ArithmeticError,
+        ) as exc:
             self._fail("record_assemble", exc)
             # Roll the partial write back NOW: an open transaction would
             # commit a phantom assemble row on the NEXT successful call
@@ -475,14 +483,27 @@ class MetricsStore(VerbLedgerMixin):
         Returns the new ``usage_reports.id`` or ``None`` on refusal/failure.
         """
         try:
-            if not isinstance(metrics_id, int) or isinstance(metrics_id, bool) or metrics_id <= 0:
+            if (
+                not isinstance(metrics_id, int)
+                or isinstance(metrics_id, bool)
+                or metrics_id <= 0
+                or metrics_id > 2**63 - 1
+            ):
+                # range bound included: a 2**64-scale int survives this check
+                # only to die as OverflowError at bind — the client-supplied
+                # boundary must degrade, never raise (review MAJOR)
                 raise ValueError(f"metrics_id must be a positive int, got {metrics_id!r}")
             if ts is not None:
                 if not math.isfinite(float(ts)):
                     raise ValueError(f"ts must be a finite number, got {ts!r}")
             if tokens_out is not None and (
-                not isinstance(tokens_out, int) or isinstance(tokens_out, bool) or tokens_out < 0
+                not isinstance(tokens_out, int)
+                or isinstance(tokens_out, bool)
+                or tokens_out < 0
+                or tokens_out > 10**12
             ):
+                # cap mirrors the counters limit in validate_meta — a sane
+                # report never carries more; larger = garbage shape
                 raise ValueError(f"tokens_out must be an int >= 0 or None, got {tokens_out!r}")
             if not isinstance(wrong_tool_flag, bool):
                 raise ValueError(f"wrong_tool_flag must be strictly bool, got {wrong_tool_flag!r}")
@@ -508,30 +529,42 @@ class MetricsStore(VerbLedgerMixin):
             conn = self._conn()
             if conn is None:
                 return None
-            # FK validation by hand: the sidecar does not enable the
-            # foreign_keys pragma, and an orphan report would poison the
-            # usage analytics' join denominator. Unknown parent = loud refusal.
-            known = conn.execute(
-                "SELECT 1 FROM assemble_metrics WHERE id = ?", (metrics_id,)
-            ).fetchone()
-            if known is None:
-                raise ValueError(
-                    f"metrics_id {metrics_id} unknown — no assemble_metrics parent;"
-                    " usage report refused"
-                )
+            # FK validation by hand AND atomically: the sidecar does not
+            # enable the foreign_keys pragma, and a check-then-insert race
+            # against the retention job could strand an immortal orphan
+            # (check and insert are NOT in one snapshot). The conditional
+            # INSERT ... SELECT ... WHERE EXISTS makes validation and write
+            # a single statement under one write lock; rowcount 0 = the
+            # parent vanished between validation passes = loud refusal.
             cur = conn.execute(
-                "INSERT INTO usage_reports (metrics_id, block_ids_touched_json, tokens_out,"
-                " wrong_tool_flag) VALUES (?,?,?,?)",
+                "INSERT INTO usage_reports (metrics_id, block_ids_touched_json,"
+                " tokens_out, wrong_tool_flag)"
+                " SELECT ?,?,?,? WHERE EXISTS"
+                " (SELECT 1 FROM assemble_metrics WHERE id = ?)",
                 (
                     metrics_id,
                     json.dumps(unique_ids, separators=(",", ":")),
                     tokens_out,
                     int(wrong_tool_flag),
+                    metrics_id,
                 ),
             )
+            if cur.rowcount == 0:
+                raise ValueError(
+                    f"metrics_id {metrics_id} unknown — no assemble_metrics parent;"
+                    " usage report refused"
+                )
             conn.commit()
             return int(cur.lastrowid or 0)
-        except (sqlite3.Error, ValueError, TypeError, AttributeError, OSError) as exc:
+        except (
+            sqlite3.Error,
+            ValueError,
+            TypeError,
+            AttributeError,
+            OSError,
+            OverflowError,
+            ArithmeticError,
+        ) as exc:
             self._fail("record_usage", exc)
             # Same rollback discipline as record_assemble/record_verb: a
             # partial write must never linger for the next commit.
