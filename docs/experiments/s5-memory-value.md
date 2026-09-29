@@ -93,5 +93,18 @@ opt-in per capture, санитизация fail-closed). «Saved X» из пас
   single-look исчерпан.
 
 Это СИНТЕТИКА v1: цифры не экстраполируются на реальные сессии (фаза D —
-opt-in per capture). B0-file negative-stratum failure — recipe artifact
+opt-in per capture).
+
+## КАППА-АБЛЯЦИЯ (2026-09-25) — touched_rate НЕ коридорная метрика в v1
+
+Препрегистрация `docs/experiments/touched-rate-kappa.md` исполнена
+(решающий look, single-look исчерпан): T=50 стратифицированных ходов,
+истина — абляцией (блок «истинно релевантен» ⇔ его удаление роняет
+task_success 1→0), предикт — touched-эхо стенда. **Оцениваемых блочных
+решений — 0**: на S5-ленте максимум 25 токенов/блок против канона ≥ 40
+(сигнальный домен пуст) → κ не существует → вердикт громкий NO-DATA
+(H-K0): `touched_rate` — НЕ коридорная метрика в v1, `corridor_eligible:
+false` структурно. Перекалибровка = НОВАЯ препрегистрация (корпус с более
+крупными блоками). Деградировавший touched_share несёт причину prereg
+(гейт мягко заперт для оператора). B0-file negative-stratum failure — recipe artifact
 (дисклеймер в отчёте).
