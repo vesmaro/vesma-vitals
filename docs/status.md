@@ -111,3 +111,25 @@ devops-dev-cluster, манифесты `~/LABs/**/` (вердикт Round-4 v2 `
   mesh-v2-contracts (20.09), multi-context-memory (14.09) — на методологию
   vitals не влияют, кроме аддитивного дрейфа assemble (см. выше).
 - Хендофф основного плана vesmaro: mnemos-запись `20849538` (2026-09-20 вечер).
+
+
+## Актуализация 2026-09-29 — живой деплой phase C
+
+**Исполнено 29.09:** phase C (usage-петля) деплоена на живой прод-сервер
+vscode-box: полные бекапы (sqlite backup API с integrity-check, raw
+sidecar/hkey, конфиги, старый venv-metrics — 72M,
+`/var/home/abyss/backup/mnemos-phase-c-deploy-20260929`), атомарная
+замена трёх файлов в прод-venv, рестарт обоих сервисов
+(`Restart=on-failure` юнитов), пост-верификация:
+- интеграционный E2E на живом снапшоте-клоне: closure 1.0, touched 1.0
+  (informational/kappa gate), hostile refusals + atomic FK, RL-S2
+  label-free экспозиция, retention cascade — все OK;
+- живая экс­пози­ция содержит verb-семейства (45+ серий) и **громко не
+  содержит usage-семей­ство** (0 assemble-строк = NO-DATA как отсутствие
+  серии, не ноль — конструк­тив­но правильно);
+- sidecar Health­y: verb растёт, 66,355+ строк.
+
+**Остаток фазы C:** экспозиция usage-семей­ства в `/api/v1/metrics`
+появится после подключения assemble-хар­несс­а (клиенты
+`assemble_context`/`pre_llm_call`). Каппа-абляция: NO-DATA (H-K0),
+перек­а­ing­бровка на корпусе с ≥40-ток­ен­ны­ми блоками (новая пре­егист­рация).
