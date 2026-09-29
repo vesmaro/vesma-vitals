@@ -213,3 +213,21 @@ S5 через импорты. Инвариант §7.1 соблюдён: вер�
 тронут; изменение заданием (sibling-раннер, «do NOT modify run.py»).
 
 Это СИНТЕТИКА v1: цифры не экстраполируются на реальные сессии (фаза D).
+
+
+## Single-look ledger incident (2026-09-29): lost with the swept worktree
+
+The single-look ledger file `reports/local/s5-ablation-kappa/ledger.json` and the
+decisive-run artifacts were lost when the `wt/vit-c3-ablate` worktree was swept
+during workspace hygiene (2026-09-29, mid-session after a reboot). The decisive
+kappa look itself is NOT lost: the committed records
+(`docs/experiments/touched-rate-kappa.md` §ИСПОЛНЕНИЕ, `docs/status.md`)
+carry the executed facts — 0 evaluable block decisions on the synthetic v1
+corpus (max block 25 tokens < the >= 40-token signal domain), loud NO-DATA
+(H-K0), kappa undefined, `touched_rate` NOT a corridor metric in v1.
+
+Recovery is NOT a re-run: the single look is exhausted by the recorded
+execution. A local decisive re-run on the recovered tape fingerprint would
+deterministically re-produce the same NO-DATA verdict but must be treated as
+an AUDIT INCIDENT — the ledger file is a best-effort artifact, its loss is
+recorded here. Recovery = this record itself.
