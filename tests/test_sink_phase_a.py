@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from mnemos_vitals.sink import MetricsStore
+from vesma_vitals.sink import MetricsStore
 
 
 def make_result(
@@ -228,7 +228,7 @@ class TestNonFatalDegradation:
         """M1: mkdir/chmod OSError (FUSE/NFS) must degrade, never raise."""
         s = MetricsStore(tmp_path / "metrics.sqlite")
         monkeypatch.setattr(
-            "mnemos_vitals.sink.os.chmod",
+            "vesma_vitals.sink.os.chmod",
             lambda *a, **k: (_ for _ in ()).throw(OSError("simulated FUSE chmod")),
         )
         assert s.record_assemble(make_result()) is None  # no exception
@@ -282,26 +282,26 @@ class TestMetaAllowlist:
     """m3: C5 meta gate is enforced in code before A2 wires record_verb."""
 
     def test_unknown_key_refuses(self):
-        from mnemos_vitals.sink import validate_meta
+        from vesma_vitals.sink import validate_meta
 
         assert validate_meta({"error_type": "ValueError"}) == {"error_type": "ValueError"}
         assert validate_meta({"nonsense_key": 1}) is None
 
     def test_error_type_must_be_class_name(self):
-        from mnemos_vitals.sink import validate_meta
+        from vesma_vitals.sink import validate_meta
 
         assert validate_meta({"error_type": "sqlite3.OperationalError"}) is not None
         assert validate_meta({"error_type": "boom: detail text"}) is None
 
     def test_counters_are_small_int_dict(self):
-        from mnemos_vitals.sink import validate_meta
+        from vesma_vitals.sink import validate_meta
 
         assert validate_meta({"counters": {"ttl_deleted": 3, "lru_evicted": 1}}) is not None
         assert validate_meta({"counters": {"bad": "text"}}) is None
         assert validate_meta({"counters": {"bad": True}}) is None
 
     def test_nonscalar_and_overlong_refuse(self):
-        from mnemos_vitals.sink import validate_meta
+        from vesma_vitals.sink import validate_meta
 
         assert validate_meta({"peer_id": ["list"]}) is None
         assert validate_meta({"peer_id": "x" * 65}) is None
@@ -312,7 +312,7 @@ class TestMetaAllowlist:
 class TestRetention:
     def test_ttl_constants_pinned(self):
         """m4: a TTL drift must fail here, not silently in production."""
-        from mnemos_vitals.schema import RETENTION_DAYS
+        from vesma_vitals.schema import RETENTION_DAYS
 
         assert RETENTION_DAYS == {
             "verb_metrics": 30,

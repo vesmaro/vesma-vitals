@@ -15,14 +15,14 @@ from pathlib import Path
 
 import pytest
 
-from mnemos_vitals.dynamism import (
+from vesma_vitals.dynamism import (
     PAIR_FULL_LIMIT,
     PAIR_SAMPLE_CAP,
     DynamismAnalyzer,
     corridor_gate,
     falsifier_level,
 )
-from mnemos_vitals.sink import MetricsStore
+from vesma_vitals.sink import MetricsStore
 
 SECRET_BLOCK = "SECRET-RULE dynamism test block content"
 

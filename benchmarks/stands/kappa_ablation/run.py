@@ -82,7 +82,7 @@ from benchmarks.stands.s5_memory_value.workload import (  # noqa: E402
     canonical_line,
     load_workload,
 )
-from mnemos_vitals.sink import MetricsStore  # noqa: E402
+from vesma_vitals.sink import MetricsStore  # noqa: E402
 
 STAND_VERSION = "kappa-ablation-1"
 #: Report dir default — the gitignored reports/local tree (prereg §7.5).
@@ -491,7 +491,7 @@ def run_ablation(
     # ── phase 1: candidate discovery (the cheap pre-look pass) ───────
     full_legs: dict[str, dict[str, Any]] = {}
     excluded_full_zero: list[str] = []
-    with tempfile.TemporaryDirectory(prefix="mnemos-kappa-") as tmp_name:
+    with tempfile.TemporaryDirectory(prefix="vesma-kappa-") as tmp_name:
         tmp = Path(tmp_name)
         if source_db is not None:
             if not Path(source_db).exists():
@@ -546,7 +546,7 @@ def run_ablation(
     # ── phase 2: the look — ablations, labels, (maybe) kappa ─────────
     decisions: list[dict[str, Any]] = []
     provenance: list[dict[str, Any]] = []
-    with tempfile.TemporaryDirectory(prefix="mnemos-kappa-ab-") as tmp_name:
+    with tempfile.TemporaryDirectory(prefix="vesma-kappa-ab-") as tmp_name:
         tmp = Path(tmp_name)
         if source_db is not None:
             m_db_path = s5_run.clone_source_store(Path(source_db), tmp / "m-arm")
@@ -1105,7 +1105,7 @@ def committed_fp() -> str:
 def main(argv: list[str] | None = None) -> int:
     """CLI — engineering (default) or the single decisive look."""
     parser = argparse.ArgumentParser(
-        description="Kappa ablation runner (mnemos-vitals phase C, frozen prereg)",
+        description="Kappa ablation runner (vesma-vitals phase C, frozen prereg)",
     )
     parser.add_argument("--mode", choices=("engineering", "decisive"), default="engineering")
     parser.add_argument(

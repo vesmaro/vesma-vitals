@@ -1,4 +1,4 @@
-# Claims-ledger mnemos-vitals
+# Claims-ledger vesma-vitals
 
 Дата основания: 2026-09-09 · Канон: docs/methodology.md §6 (ArchCom `7ec9dda3`).
 

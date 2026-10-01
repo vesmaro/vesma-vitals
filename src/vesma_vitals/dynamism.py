@@ -61,7 +61,7 @@ from dataclasses import dataclass
 from itertools import combinations
 from typing import Any
 
-logger = logging.getLogger("mnemos_vitals.dynamism")
+logger = logging.getLogger("vesma_vitals.dynamism")
 
 #: Static-block threshold (canon §3.4): the (memory_id, block_fp) pair
 #: must appear in >= 80% of the session's assemblies to count as static.

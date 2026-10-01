@@ -86,8 +86,8 @@ from benchmarks.stands.s5_memory_value.workload import (  # noqa: E402
     workload_summary,
     write_workload,
 )
-from mnemos_vitals.dynamism import DynamismAnalyzer, corridor_gate  # noqa: E402
-from mnemos_vitals.sink import MetricsStore  # noqa: E402
+from vesma_vitals.dynamism import DynamismAnalyzer, corridor_gate  # noqa: E402
+from vesma_vitals.sink import MetricsStore  # noqa: E402
 
 STAND_VERSION = "s5-2"
 
@@ -922,7 +922,7 @@ def run_s5(
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    with tempfile.TemporaryDirectory(prefix="mnemos-s5-") as tmp_name:
+    with tempfile.TemporaryDirectory(prefix="vesma-s5-") as tmp_name:
         tmp = Path(tmp_name)
         m_sidecar_path = tmp / "m-arm" / "metrics.sqlite"
 
@@ -1389,7 +1389,7 @@ def parse_thresholds(raw: str | None) -> dict[str, Any] | None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="S5 memory-value stand (mnemos-vitals phase B)")
+    parser = argparse.ArgumentParser(description="S5 memory-value stand (vesma-vitals phase B)")
     parser.add_argument(
         "--workload",
         type=Path,

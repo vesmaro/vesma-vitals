@@ -18,7 +18,7 @@ code, and the code is what ships.
 
 from __future__ import annotations
 
-from mnemos_vitals.schema import SCHEMA_SQL, TABLE_NAMES, TABLE_SCHEMAS
+from vesma_vitals.schema import SCHEMA_SQL, TABLE_NAMES, TABLE_SCHEMAS
 
 # Exact column names that may never exist in ANY sidecar table (privacy by
 # structure, not by filter): raw-text carriers, credentials, principals.
@@ -136,7 +136,7 @@ class TestC1Canary:
         }
 
     def test_no_migrations_exist(self):
-        from mnemos_vitals import schema
+        from vesma_vitals import schema
 
         assert not hasattr(schema, "MIGRATIONS")
         assert not hasattr(schema, "run_migrations")
@@ -167,7 +167,7 @@ class TestC1Canary:
                 assert "session" in names  # the pin above keeps it honest
 
     def test_sidecar_filename_is_fixed(self):
-        from mnemos_vitals.schema import SIDECAR_FILENAME
+        from vesma_vitals.schema import SIDECAR_FILENAME
 
         assert SIDECAR_FILENAME == "metrics.sqlite"
 

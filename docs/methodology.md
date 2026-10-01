@@ -1,4 +1,4 @@
-# Методология mnemos-vitals
+# Методология vesma-vitals
 
 Дата: 2026-09-09 · Статус: канон (Architectural Committee mnemos, решение `7ec9dda3`
 + аддендум `061398fe`; ADR-0026 mnemos — формальная запись) · Владелец методологии:
@@ -161,7 +161,7 @@ CCR-accounting, федерация, workflow), (2) auto-collect/ingest/401/429/D
 
 ## 6. Claims-ledger
 
-`docs/claims.md` (в репозитории mnemos-vitals, зеркалируется в README-утверждения
+`docs/claims.md` (в репозитории vesma-vitals, зеркалируется в README-утверждения
 mnemos): каждое обещание README/features → семья-владелец → метрика → статус
 (`measured-value` / `measured-health` / `UNMEASURED`). Флагманские строки: CCR
 «оригиналы сохранены» → F3 redemption (вторая половина обещания сегодня недоказана);

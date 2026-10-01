@@ -32,7 +32,7 @@ Kappa gate (structural, frozen pre-registration
 Privacy by structure: all three aggregates are global counts/rates —
 no session, project or principal column is read or emitted anywhere.
 
-Non-fatal by contract (mirrors :class:`mnemos_vitals.dynamism
+Non-fatal by contract (mirrors :class:`vesma_vitals.dynamism
 .DynamismAnalyzer`): any read error degrades to a loud NO-DATA dict
 with ``reasons`` — never an exception, never a silent zero. NO-DATA is
 not zero: with no reports the value keys carry ``None``.
@@ -45,7 +45,7 @@ import logging
 import sqlite3
 from typing import Any
 
-logger = logging.getLogger("mnemos_vitals.usage")
+logger = logging.getLogger("vesma_vitals.usage")
 
 #: Frozen calibration thresholds (docs/experiments/touched-rate-kappa.md).
 KAPPA_MIN = 0.6

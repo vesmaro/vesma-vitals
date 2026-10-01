@@ -1,4 +1,4 @@
-"""mnemos-vitals — honest measurement methodology and instrumentation
+"""vesma-vitals — honest measurement methodology and instrumentation
 for the Mnemos memory server.
 
 Two circuits:

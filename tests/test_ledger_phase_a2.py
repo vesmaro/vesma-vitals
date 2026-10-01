@@ -16,8 +16,8 @@ from pathlib import Path
 
 import pytest
 
-from mnemos_vitals.exposer import render_exposition
-from mnemos_vitals.sink import MetricsStore, validate_meta
+from vesma_vitals.exposer import render_exposition
+from vesma_vitals.sink import MetricsStore, validate_meta
 
 
 @pytest.fixture()
@@ -196,7 +196,7 @@ class TestExposition:
 class TestN4Followups:
     def test_counters_scalar_refused(self):
         """m6: counters must be a DICT — bool/int scalar slips the old order."""
-        from mnemos_vitals.sink import validate_meta
+        from vesma_vitals.sink import validate_meta
 
         assert validate_meta({"counters": True}) is None
         assert validate_meta({"counters": 5}) is None
@@ -204,7 +204,7 @@ class TestN4Followups:
 
     def test_exit_code_allowlisted(self):
         """n3: the CLI surface records exit_code explicitly."""
-        from mnemos_vitals.sink import validate_meta
+        from vesma_vitals.sink import validate_meta
 
         assert validate_meta({"exit_code": 1}) is not None
         assert validate_meta({"exit_code": "one"}) is None

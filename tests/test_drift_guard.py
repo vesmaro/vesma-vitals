@@ -20,7 +20,7 @@ from __future__ import annotations
 import json
 import sqlite3
 
-from mnemos_vitals.sink import MetricsStore
+from vesma_vitals.sink import MetricsStore
 
 SECRET_QUERY = "SECRET-QUERY how does the payment retry loop work?"
 SECRET_CONTENT = "SECRET-RULE-PAYLOAD rotation policy details"

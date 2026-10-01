@@ -525,7 +525,7 @@ class TestIsolation:
 
         from benchmarks.stands.s5_memory_value import run as s5_run
 
-        from mnemos_vitals.sink import MetricsStore
+        from vesma_vitals.sink import MetricsStore
 
         monkeypatch.setattr(krun, "SANCTIONED_LEDGER_DIR", tmp_path / "iso")
         source = tmp_path / "source.sqlite"

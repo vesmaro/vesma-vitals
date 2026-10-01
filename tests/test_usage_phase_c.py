@@ -23,8 +23,8 @@ from pathlib import Path
 
 import pytest
 
-from mnemos_vitals.sink import MetricsStore
-from mnemos_vitals.usage import (
+from vesma_vitals.sink import MetricsStore
+from vesma_vitals.usage import (
     KAPPA_CI_FLOOR,
     KAPPA_MIN,
     KAPPA_PENDING_REASON,
@@ -143,19 +143,19 @@ class TestUsageRefusals:
         assert usage_rows(store) == []  # WHOLE write refused, no partial row
 
     def test_unknown_metrics_id_loud_refusal(self, store: MetricsStore, caplog):
-        caplog.set_level(logging.WARNING, logger="mnemos_vitals.sink")
+        caplog.set_level(logging.WARNING, logger="vesma_vitals.sink")
         self._assert_refused(
             store, caplog, store.record_usage(self.mid + 999, block_ids_touched=["x"])
         )
 
     @pytest.mark.parametrize("bad_id", ["5", 5.0, True, None, 0, -1])
     def test_bad_metrics_id(self, store: MetricsStore, caplog, bad_id):
-        caplog.set_level(logging.WARNING, logger="mnemos_vitals.sink")
+        caplog.set_level(logging.WARNING, logger="vesma_vitals.sink")
         self._assert_refused(store, caplog, store.record_usage(bad_id, block_ids_touched=["x"]))
 
     @pytest.mark.parametrize("bad", ["b:0", ("b:0",), {"b:0"}, None, 5])
     def test_non_list_touched(self, store: MetricsStore, caplog, bad):
-        caplog.set_level(logging.WARNING, logger="mnemos_vitals.sink")
+        caplog.set_level(logging.WARNING, logger="vesma_vitals.sink")
         self._assert_refused(store, caplog, store.record_usage(self.mid, block_ids_touched=bad))
 
     @pytest.mark.parametrize(
@@ -171,18 +171,18 @@ class TestUsageRefusals:
         ],
     )
     def test_bad_entries(self, store: MetricsStore, caplog, bad_entries):
-        caplog.set_level(logging.WARNING, logger="mnemos_vitals.sink")
+        caplog.set_level(logging.WARNING, logger="vesma_vitals.sink")
         refused = store.record_usage(self.mid, block_ids_touched=bad_entries)
         self._assert_refused(store, caplog, refused)
 
     def test_too_many_entries(self, store: MetricsStore, caplog):
-        caplog.set_level(logging.WARNING, logger="mnemos_vitals.sink")
+        caplog.set_level(logging.WARNING, logger="vesma_vitals.sink")
         ids = [f"b-{i}" for i in range(257)]
         self._assert_refused(store, caplog, store.record_usage(self.mid, block_ids_touched=ids))
 
     @pytest.mark.parametrize("bad_tokens", [-1, 1.5, "5", True])
     def test_bad_tokens_out(self, store: MetricsStore, caplog, bad_tokens):
-        caplog.set_level(logging.WARNING, logger="mnemos_vitals.sink")
+        caplog.set_level(logging.WARNING, logger="vesma_vitals.sink")
         refused = store.record_usage(
             self.mid, block_ids_touched=["x"], tokens_out=bad_tokens
         )
@@ -190,7 +190,7 @@ class TestUsageRefusals:
 
     @pytest.mark.parametrize("bad_flag", [1, 0, "yes", None])
     def test_bad_wrong_tool_flag(self, store: MetricsStore, caplog, bad_flag):
-        caplog.set_level(logging.WARNING, logger="mnemos_vitals.sink")
+        caplog.set_level(logging.WARNING, logger="vesma_vitals.sink")
         self._assert_refused(
             store,
             caplog,
@@ -199,7 +199,7 @@ class TestUsageRefusals:
 
     @pytest.mark.parametrize("bad_ts", ["now", float("nan"), float("inf")])
     def test_bad_ts(self, store: MetricsStore, caplog, bad_ts):
-        caplog.set_level(logging.WARNING, logger="mnemos_vitals.sink")
+        caplog.set_level(logging.WARNING, logger="vesma_vitals.sink")
         self._assert_refused(
             store, caplog, store.record_usage(self.mid, block_ids_touched=["x"], ts=bad_ts)
         )

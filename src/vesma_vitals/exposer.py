@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from mnemos_vitals.sink import MetricsStore
+from vesma_vitals.sink import MetricsStore
 
 
 def _escape_label(value: str) -> str:

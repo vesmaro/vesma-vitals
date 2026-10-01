@@ -36,9 +36,9 @@ from contextlib import suppress
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
-from mnemos_vitals.schema import validate_meta
+from vesma_vitals.schema import validate_meta
 
-logger = logging.getLogger("mnemos_vitals.ledger")
+logger = logging.getLogger("vesma_vitals.ledger")
 
 #: Metered surfaces (born-final CHECK in the schema — mirrored here for
 #: cheap refusal before the write).

@@ -43,17 +43,17 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from mnemos_vitals.ledger import VerbLedgerMixin
-from mnemos_vitals.schema import (
+from vesma_vitals.ledger import VerbLedgerMixin
+from vesma_vitals.schema import (
     RETENTION_DAYS,
     SCHEMA_SQL,
     TABLE_NAMES,
 )
-from mnemos_vitals.schema import (
+from vesma_vitals.schema import (
     validate_meta as validate_meta,  # re-export: part of the sink contract
 )
 
-logger = logging.getLogger("mnemos_vitals.sink")
+logger = logging.getLogger("vesma_vitals.sink")
 
 #: The assembled text is fingerprinted, never stored. Shingling for the
 #: dynamism corridor (phase B) re-derives fingerprints from the same
@@ -411,7 +411,7 @@ class MetricsStore(VerbLedgerMixin):
         "<hmac>"}``. The column tuple is born-final (tests/test_canary_c1.py)
         and gains nothing; the payload SHAPE is not part of that pin.
         Pre-phase-B rows carry the legacy array payload; readers tolerate
-        both (see mnemos_vitals.dynamism).
+        both (see vesma_vitals.dynamism).
         """
         for i, b in enumerate(blocks):
             content = b.get("content")
