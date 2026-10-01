@@ -26,6 +26,10 @@
 - Test suite: 33 tests (7 canary + 22 sink/meta/retention + 4
   drift-guard); ruff clean.
 
+### Changed
+
+- README: sibling cross-links added to the rebranded ecosystem repos — [vesmaro/vesma](https://github.com/vesmaro/vesma) and [vesmaro/vesma-eyes](https://github.com/vesmaro/vesma-eyes).
+
 ## 0.0.1 — 2026-09-09
 
 - Project founded: methodology, architecture and instrumentation track split
