@@ -21,11 +21,16 @@
 
 - **Ребренд mnemos → vesmaro** (ADR-0031): GitHub org `Korrnals/mnemos` →
   `vesmaro/vesmaro`; локальный чекаут прежний
-  (`~/LABs/Projects/Project-Mnemos/mnemos`); код в dual-layout
+  (`~/LABs/Projects/Project-Mnemos/mnemos`; с 2026-10-01 — `~/LABs/Projects/Project-Vesma/vesma`); код в dual-layout
   `src/mnemos` + `src/vesmaro`; окно полного переименования — релиз 5.0.0
   (за «да» владельца). **Открытый вопрос для этого репо**: имя
   `mnemos-vitals` → `vesmaro-vitals` в окне 5.0.0 (семейство наследует имя:
   прецедент vesmaro-embed / vesmaro-refine).
+- **Актуализация 2026-10-01 (эко-ребрендинг Vesmaro → Vesma)**: канон ядра —
+  `vesmaro/vesma`; это репо перенесено в `vesmaro/vesma-vitals` (зеркальный пуш,
+  refs верифицированы побитно) — открытый вопрос имени выше ЗАКРЫТ: канон
+  `vesma-vitals`. Локальные пути `Project-Mnemos` → `Project-Vesma` (выше
+  поправлены на живые).
 - **#249 (`_METRICS_BYPASS`) закрыт** — «metrics endpoints require auth on
   non-loopback binds» (#304). Прекондиция экспозера (RL-S1) снята.
 - **Точка интеграции переехала и задрейфила — найдено и починено**: `assemble_context`
@@ -153,7 +158,7 @@ v1** (кор­пус синт­ет­ики макс. 25-токен­ных бл
 
 1. **Пуш + PR** хост-ветки `feat/vitals-phase-c-integration` в vesmaro
    (локальная ветка `5402ed8`+`7b5a9c5` в worktree `wt/vit-c-vesmaro`,
-   хендофф-пакет `Project-Mnemos/VITALS-C-HOST-PR-HANDOFF.md` — конфликтный
+   хендофф-пакет `Project-Vesma/VITALS-C-HOST-PR-HANDOFF.md` — конфликтный
    рецепт внутри: только `docs/project/dev-plan.md`, «ставить обе стороны»).
 2. **Деплой `57a9d82`+ в прод** — тогда сним­аются live гейт-факты A2
    (INSERT p95 hooks-пути, объём/день) и закрывается вер­дикт фазы C
