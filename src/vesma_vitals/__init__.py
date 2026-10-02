@@ -1,5 +1,5 @@
 """vesma-vitals — honest measurement methodology and instrumentation
-for the Mnemos memory server.
+for the Vesma memory server.
 
 Two circuits:
   Health — every server function: called / succeeded / latency / errors.
@@ -11,11 +11,11 @@ Canon: docs/methodology.md. Architecture: docs/architecture.md.
 
 __version__ = "0.0.1"
 
-#: Metric family registry (ADR-0026 mnemos + addendum 061398fe).
+#: Metric family registry (ADR-0026 vesma + addendum 061398fe).
 #: One value — one name — one family; family = theme or one falsifiable
 #: owner question, never a tier.
 FAMILY_REGISTRY = {
-    "F2": "Accuracy / quality (owner family, mnemos ADR-0020)",
+    "F2": "Accuracy / quality (owner family, vesma ADR-0020)",
     "F3": "Token economy (compression + redemption)",
     "F5": "Session coherence",
     "F6": "Availability",

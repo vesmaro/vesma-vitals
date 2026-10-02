@@ -1,14 +1,14 @@
 # Архитектура vesma-vitals
 
 Дата: 2026-09-09 · Статус: спецификация (до реализации) · Источник: контракт АрхКома
-2026-09-09 (§1–8), проверенные точки вставки в коде mnemos
+2026-09-09 (§1–8), проверенные точки вставки в коде vesma
 
 ## 1. Позиционирование в системе
 
 vesma-vitals — **гость** в сервере mnemos. Контракт:
 
-- mnemos не зависит от vesma-vitals в runtime (импорт-изоляция; тест-гвард как в
-  mcp-core-прецеденте mnemos #185).
+- vesma не зависит от vesma-vitals в runtime (импорт-изоляция; тест-гвард как в
+  mcp-core-прецеденте vesma #185).
 - vesma-vitals встраивается **только** в определённые границы (§3); конвейер
   `assemble_context` и основной стор не затрагиваются.
 - Отказ записи метрик — non-fatal (warning-лог); сервер работает при выключенном
@@ -46,10 +46,10 @@ Retention: `verb_metrics` TTL **30 дней** (~200–360 МБ при верхн
 ## 3. Точки сбора (10, на границах поверхностей)
 
 Одна запись на вызов — вызов проходит ровно одну поверхность. Двойной счёт
-исключён; конвейер менеджера не тронут (S2-стенд mnemos вызывает менеджера
+исключён; конвейер менеджера не тронут (S2-стенд vesma вызывает менеджера
 напрямую — обёртки вне его пути, коридор не задет).
 
-| # | Точка | Код mnemos (проверено) | verb-примеры |
+| # | Точка | Код vesma (проверено) | verb-примеры |
 |---|---|---|---|
 | 1 | `call_tool` — вся MCP-поверхность одной обёрткой | `mcp_server.py:1318` | `mnemos_add`, `mnemos_search`, … |
 | 2 | `MetricsMiddleware` на app (рядом с AuthMiddleware) | `api/main.py:211`; route-template, не raw path; служебные `/health`, `/metrics`, `/api/v1/stats*` исключены | `rest:POST:/search` |
@@ -75,20 +75,20 @@ HMAC-фингерпринты). Это две плоскости факта, н�
   rollup.
 - `avg_latency_ms` **удаляется** — среднее скрывает хвосты.
 - Объёмные gauge (`memories_total`, by_status, vectors, sessions) — остаются из
-  `dashboard_stats()` mnemos (main-store факты).
+  `dashboard_stats()` vesma (main-store факты).
 - Публичная exposition: **ноль лейблов endpoint/project/detector** на
   security-метриках (RL-S2); гранулярность выше глобального агрегата — только
   приватный контур (sidecar + операторские API). Per-principal — запрещён везде.
-- Предусловие: фикс mnemos #249 (`_METRICS_BYPASS`) — auth на metrics-эндпоинтах
+- Предусловие: фикс vesma #249 (`_METRICS_BYPASS`) — auth на metrics-эндпоинтах
   для non-loopback-бинов или split public-safe/operator-only; чинится **до**
   любой новой exposition.
 
 ## 5. Стенд S5 «memory-value»
 
-`benchmarks/`-структура vesma-vitals (в репозитории mnemos стенды не меняются —
+`benchmarks/`-структура vesma-vitals (в репозитории vesma стенды не меняются —
 их baselines стабильны).
 
-- Каркас обобщается из `s3_session/run.py` mnemos (single-command runner,
+- Каркас обобщается из `s3_session/run.py` vesma (single-command runner,
   `--record`, детерминизм BLAKE2b lexical embedder): `workload.py` (JSONL-лента
   событий: hints, tool-вызовы, записи памяти; источники — синтетический скрипт
   [гейтовый] и экспорт реальных сессий [фаза D, informational]), `run.py` (два
@@ -96,16 +96,16 @@ HMAC-фингерпринты). Это две плоскости факта, н�
   `actor=benchmark`; wall-clock в метрики не входит).
 - Comparator-ноги: B0-naive / B0-file / B0-full (см. methodology.md §3.5);
   заголовок экономии — только при равной успешности.
-- Baseline: раскладка как у mnemos s1/s3/s4; отчёт-страница mnemos
+- Baseline: раскладка как у vesma s1/s3/s4; отчёт-страница vesma
   (`report_page.py`) расширяется аддитивно (строка `s5` + светофор F8), отчёт
   vitals — свой рендер PASS / FAIL / NO-DATA с exit-1 при breach.
 - v1 — только синтетика; реальные сессии (фаза D): opt-in per capture,
-  санитизация fail-closed на границе захвата, хранение вне стора mnemos и вне
+  санитизация fail-closed на границе захвата, хранение вне стора vesma и вне
   репозиториев (0600), born no-federate, retention + команда удаления.
 
 ## 6. Отчёт владельца
 
-Светофор по семьям: F1–F7 (mnemos, существующие) + F8 (memory value: вердикты) +
+Светофор по семьям: F1–F7 (vesma, существующие) + F8 (memory value: вердикты) +
 F9 (Subsystem health: суб-светофоры по подсистемам). Три состояния — PASS / FAIL /
 NO-DATA; NO-DATA рендерится явно, никогда не зелёный. Генератор аварийит (exit 1),
 а не редактирует. Claims-ledger (`docs/claims.md`) связывает каждое обещание с
@@ -130,5 +130,5 @@ NO-DATA; NO-DATA рендерится явно, никогда не зелёны
   метрики.
 - Инвариант cross-principal-leak = 0 расширен на metrics-плоскость.
 - INSERT-латентность hooks-пути — измерение в гейте A2.
-- S2-коридоры mnemos не задеты: стенд вызывает менеджера напрямую, обёртки вне
+- S2-коридоры vesma не задеты: стенд вызывает менеджера напрямую, обёртки вне
   пути.

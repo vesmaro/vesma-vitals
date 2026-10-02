@@ -1,14 +1,14 @@
 # Методология vesma-vitals
 
-Дата: 2026-09-09 · Статус: канон (Architectural Committee mnemos, решение `7ec9dda3`
-+ аддендум `061398fe`; ADR-0026 mnemos — формальная запись) · Владелец методологии:
+Дата: 2026-09-09 · Статус: канон (Architectural Committee vesma, решение `7ec9dda3`
++ аддендум `061398fe`; ADR-0026 vesma — формальная запись) · Владелец методологии:
 Tech Lead
 
 Эта страница — единая точка истины методологии. Протоколы АрхКома (team-local,
 `~/.gcw/architectural-committee/2026-09-09-*.md`) — источник решений; здесь они
 операционализированы. Формулировки владельца, породившие методологию:
 
-> «Требуется чётко разработанная методика и архитектура анализа функционала Mnemos —
+> «Требуется чётко разработанная методика и архитектура анализа функционала Vesma —
 > начиная от метрик и логов, и заканчивая конкретными измерениями показателей. (…)
 > Сейчас на словах и доках всё красиво, а по факту нет особого ощущения, что, к примеру,
 > контекст РЕАЛЬНО динамически формируется. Сколько при этом мы реально экономим токенов
@@ -43,7 +43,7 @@ Tech Lead
    merge-гейт — только новой директивой владельца с перепрепрегистрацией. Бремя
    доказательства лежит на памяти: PASS по экономии ⇔ нижняя граница бутстрепного
    CI95 (95%-й доверительный интервал) net-token-savings строго > 0.
-3. **Препрегистрация до прогона** (анти-HARKing, канон E0 из ADR-0025 mnemos):
+3. **Препрегистрация до прогона** (анти-HARKing, канон E0 из ADR-0025 vesma):
    гипотезы, comparator-ы, пороги, workload-фингерпринт, план анализа, single-look
    фиксируются в `docs/experiments/` **до** первого прогона. Порог выбирается после
    baseline, не до данных; для value — полная препрегистрация; для health — только
@@ -99,7 +99,7 @@ Value-метрики и их семьи-владельцы (правило «о�
    метрика-предусловие. Структурный фальсификатор: доля внутрисессионных пар с нулевой
    уникальностью превышает препрегестрированный уровень → FAIL. Харнесный слой
    `prompt_static_share` (доля статического в полном промпте) — информационный,
-   клиентский, никогда не гейтит регрессии mnemos (атрибуция невозможна).
+   клиентский, никогда не гейтит регрессии vesma (атрибуция невозможна).
 5. **Стенд S5 «memory-value».** Двухрукавный replay: memory-on / memory-off на
    изолированной копии стора (SQLite backup API, прецедент S4; wall-clock в метрики
    не входит). Comparator-ноги: **B0-naive** (полный транскрипт в окне — заголовок),
@@ -120,7 +120,7 @@ actionable. Состав:
 |---|---|
 | Федерация | pull-success-rate, bytes-synced, acl-denied-rate; инвариант federation-acl-probe = 1.000 (контрольные пробы вне scope получают deny) |
 | Workflow | инвариант workflow-transition-validated = 1.000; forbidden-attempt-rate, stale-lock-rate, blocked-age p50/p95 |
-| Heal / reclaim | effectiveness, fail-rate, recovery (счётчики уже считаются в коде mnemos — экспонирование почти бесплатно) |
+| Heal / reclaim | effectiveness, fail-rate, recovery (счётчики уже считаются в коде vesma — экспонирование почти бесплатно) |
 | DLQ | retry-success-rate, age-of-oldest |
 | ingest_url | success-rate, placeholder-rate, ssrf-rejected; инвариант ingest-ssrf-bypass = 0 |
 | Auth | 401/429-rate per endpoint-шаблон; инвариант auth-bypass-probe = 1.000 |
@@ -148,7 +148,7 @@ CCR-accounting, федерация, workflow), (2) auto-collect/ingest/401/429/D
   метрики объявлены «не аудит-записи».
 - **C5** (аддендум): `meta_json` — allowlist fail-closed; неизвестный ключ = отказ записи
   с warning; текст исключений / стектрейсы / caller-input — никогда.
-- **RL-S1** (P0, тикет mnemos #249): `_METRICS_BYPASS` — /metrics и /api/v1/metrics
+- **RL-S1** (P0, тикет vesma #249): `_METRICS_BYPASS` — /metrics и /api/v1/metrics
   обходят auth безусловно даже при `auth_enabled=true` на non-loopback и уже
   экспортируют by_project/by_agent. Чинится **первым шагом** до любой новой exposition.
 - **RL-S2–S7**: публичная exposition — ноль лейблов endpoint/project/detector;
@@ -162,7 +162,7 @@ CCR-accounting, федерация, workflow), (2) auto-collect/ingest/401/429/D
 ## 6. Claims-ledger
 
 `docs/claims.md` (в репозитории vesma-vitals, зеркалируется в README-утверждения
-mnemos): каждое обещание README/features → семья-владелец → метрика → статус
+vesma): каждое обещание README/features → семья-владелец → метрика → статус
 (`measured-value` / `measured-health` / `UNMEASURED`). Флагманские строки: CCR
 «оригиналы сохранены» → F3 redemption (вторая половина обещания сегодня недоказана);
 «KV-кэш попадает» → UNMEASURED (нужен клиентский сигнал). Правило сиротской метрики:
@@ -197,5 +197,5 @@ mnemos): каждое обещание README/features → семья-владе
 
 - Протоколы АрхКома (team-local): `~/.gcw/architectural-committee/2026-09-09-memory-value-observability{,-contract}.md`, `2026-09-09-full-server-coverage-{addendum,map}.md`
 - mnemos: решения `7ec9dda3` (ядро), `061398fe` (аддендум), повестка `0fd16319`
-- mnemos ADR-0026 «Memory-Value Observability» (+ секция Addendum: Full Server Coverage)
-- mnemos #249 — P0 `_METRICS_BYPASS` (блокер первого PR)
+- vesma ADR-0026 «Memory-Value Observability» (+ секция Addendum: Full Server Coverage)
+- vesma #249 — P0 `_METRICS_BYPASS` (блокер первого PR)

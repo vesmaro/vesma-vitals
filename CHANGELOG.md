@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Финальная зачистка ребрендинга (волна W-D): проза и комментарии переведены на бренд vesma. Контракты не тронуты: теги project:mnemos/mnemos:*, метрики mnemos_*, канон-данные и ADR-история владельца.
+
 ### Added
 
 - Phase A library core (branch `feat/phase-a-sink`): born-final sidecar schema

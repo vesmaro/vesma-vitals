@@ -19,7 +19,7 @@
 
 ## Актуализация 2026-09-20 — что изменилось в экосистеме
 
-- **Ребренд mnemos → vesmaro** (ADR-0031): GitHub org `Korrnals/mnemos` →
+- **Ребренд vesma → vesmaro** (ADR-0031): GitHub org `Korrnals/mnemos` →
   `vesmaro/vesmaro`; локальный чекаут прежний
   (`~/LABs/Projects/Project-Mnemos/mnemos`; с 2026-10-01 — `~/LABs/Projects/Project-Vesma/vesma`); код в dual-layout
   `src/mnemos` + `src/vesmaro`; окно полного переименования — релиз 5.0.0
@@ -89,7 +89,7 @@ F8-светофор отчёта владельца — собранный S5-в
   child-table каскадом, chmod 0600;
 - `tests/` — 7 канареек C1 (born-final pin колонок каждой таблицы + C3-ассерт
   «session только в assemble_metrics») + 22 контракт-теста sink/meta/retention
-  + 4 drift-guard; ruff 0 (line-length 100 по канону mnemos);
+  + 4 drift-guard; ruff 0 (line-length 100 по канону vesma);
 - ревью-история: проход 1 — REQUEST-CHANGES (4 мажора: OSError в host,
   фантомные строки при failed write, WAL/SHM 0644, незакреплённый C3),
   проход 2 — все фиксы верифицированы воспроизведением, APPROVE;
@@ -100,7 +100,7 @@ F8-светофор отчёта владельца — собранный S5-в
 
 ## Дальнейшая работа
 
-Точка входа сессии: mnemos recall `bbc2a3db` + `567f9e81` + хендофф
+Точка входа сессии: vesma recall `bbc2a3db` + `567f9e81` + хендофф
 «основной план vesmaro 2026-09-20» → `docs/methodology.md` →
 `docs/architecture.md` → этот файл. Прогонная среда стендов — K3s
 devops-dev-cluster, манифесты `~/LABs/**/` (вердикт Round-4 v2 `84e6b444`).
