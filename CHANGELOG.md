@@ -8,6 +8,11 @@
 
 ### Added
 
+- Повтор эксперимента graph-vs-grep (вечер 2026-10-03, vesma 5.4.0): оба проигрыша
+  первого прогона закрыты — T2 bare-tail `trace_path` (1 вызов вместо отказа+3),
+  T3 literal-фолбэк (`fallback_used=true`); живой Go-индекс vesma-mesh
+  (2367 узлов / 6824 ребра / 152 файла, 0 parse_errors), day-0 базлайн телеметрии
+  (`graph_audit`, 7 actor-ов) и poisoned-пруф 24→0. — `docs/experiments/graph-vs-grep-20261003.md`
 - Phase A library core (branch `feat/phase-a-sink`): born-final sidecar schema
   (`schema.py` — five tables, allowlist meta_json, retention constants) and
   `MetricsStore` (`sink.py`) — the passive-collection write path with non-fatal
