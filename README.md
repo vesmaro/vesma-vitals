@@ -41,10 +41,11 @@ vesma-vitals закрывает этот разрыв двумя контура�
 | Раздел | Что внутри | Кому |
 |---|---|---|
 | [docs/methodology.md](docs/methodology.md) | Полная методология: зоны, контуры, метрики, статусы, фазы | Всем — точка входа |
+| [docs/token-economy.md](docs/token-economy.md) | Токен-экономика — метрика №1: schema rent, tokens-per-task, savings vs baseline, break-even N* | Всем, кто сравнивает модели/инструменты/методы |
 | [docs/architecture.md](docs/architecture.md) | Компоненты, схема данных, точки сбора, Prometheus-гибрид | Реализатору |
 | [docs/decisions/](docs/decisions/) | Журнал решений (перенос канона АрхКома) | Будущим контрибьюторам |
 | [docs/claims.md](docs/claims.md) | Claims-ledger: обещание → метрика → статус | Владельцу — «что уже доказано» |
-| [docs/experiments/](docs/experiments/) | Препрегистрации (анти-HARKing, до первого прогона) | Аналитику |
+| [docs/experiments/](docs/experiments/) | Препрегистрации (анти-HARKing, до первого прогона); шаблон — [TEMPLATE.md](docs/experiments/TEMPLATE.md) с обязательной секцией «Экономия токенов» до вердикта | Аналитику |
 | [src/vesma_vitals/](src/vesma_vitals/) | Код: sink, леджер, экспозер, стенд S5 | Реализатору |
 | [CHANGELOG.md](CHANGELOG.md) | История изменений | Всем |
 
