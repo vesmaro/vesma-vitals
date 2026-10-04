@@ -9,7 +9,7 @@ Two circuits:
 Canon: docs/methodology.md. Architecture: docs/architecture.md.
 """
 
-__version__ = "0.0.1"
+__version__ = "0.1.0"
 
 #: Metric family registry (ADR-0026 vesma + addendum 061398fe).
 #: One value — one name — one family; family = theme or one falsifiable
