@@ -1,7 +1,7 @@
 [project]
 name = "vesma-vitals"
-version = "0.0.1"
-description = "Honest measurement methodology and instrumentation for the Mnemos memory server: health contour for every function, value proof for promised functions"
+version = "0.1.0"
+description = "Honest measurement methodology and instrumentation for the vesma memory server: health contour for every function, value proof for promised functions"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = []
